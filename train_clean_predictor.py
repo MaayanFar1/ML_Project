@@ -50,25 +50,9 @@ def compute_clean_loss(
     edge_mask,
     target,
 ):
-    """
-    Clean Case 2 loss:
-    - NO diffusion noise
-    - NO random t
-    - Uses EDM normalization only (t = 0)
-    """
-
     # 1) Normalize coordinates and node features with EDM
-    # x_norm, h_norm, _ = edm_model.normalize(
-    #     x,
-    #     {"categorical": h, "integer": torch.zeros(0, device=x.device)},
-    #     node_mask,
-    # )
 
-    x_norm, h_norm, _ = normalize(
-        x,
-        {"categorical": h, "integer": torch.zeros(0, device=x.device)},
-        node_mask,
-    )
+    x_norm, h_norm, _ = normalize( x, {"categorical": h, "integer": torch.zeros(0, device=x.device)}, node_mask)
 
     # 2) Build [x_norm | h_norm] input
     xh = torch.cat([x_norm, h_norm["categorical"]], dim=-1)  # [bs, n_nodes, d+in_nf]
@@ -76,13 +60,10 @@ def compute_clean_loss(
     bs, n_nodes, _ = x.shape
     edge_mask_flat = edge_mask.view(bs, n_nodes * n_nodes)   # [bs, n_nodes^2]
 
-    # 3) Use fixed t = 0 (no diffusion, just a constant conditioning value)
-    t = torch.zeros(bs, 1, device=x.device)
+    # 3) Forward pass
+    preds = model(xh, node_mask, edge_mask_flat)  # [bs, num_targets]
 
-    # 4) Forward pass
-    preds = model(xh, node_mask, edge_mask_flat, t)  # [bs, num_targets]
-
-    # 5) L1 loss in normalized target space
+    # 4) L1 loss in normalized target space
     loss = l1_loss(preds, target)
     error = (preds - target).abs().detach()  # per-sample, per-target
     return loss, error
@@ -139,8 +120,9 @@ def train_epoch_clean(
         f" in {int(time()-start_time)} secs"
     )
     sleep(0.01)
-    writer.add_scalar("Train loss", np.mean(loss_list), epoch)
-    writer.add_scalar("Train L1 (rescaled)", np.mean(rl_loss), epoch)
+    if writer is not None:
+        writer.add_scalar("Train loss", np.mean(loss_list), epoch)
+        writer.add_scalar("Train L1 (rescaled)", np.mean(rl_loss), epoch)
 
 
 def val_epoch_clean(
@@ -205,7 +187,6 @@ def get_cond_predictor_model(args, dataset: AromaticDataset):
         recurrent=True,
         tanh=args.tanh,
         attention=args.attention,
-        condition_time=False, 
         coords_range=args.coords_range,
     )
 
@@ -223,19 +204,6 @@ def main(pred_args, device):
     # Data
     # ---------------------------
     train_loader, val_loader, test_loader = create_data_loaders(pred_args)
-
-    # ---------------------------
-    # EDM model ONLY for normalize()
-    # ---------------------------
-    # edm_args = Args_EDM().parse_args([])
-    # # Make EDM dataset match predictor dataset if possible
-    # if hasattr(pred_args, "dataset"):
-    #     edm_args.dataset = pred_args.dataset
-    # edm_args.device = device
-
-    # edm_model, _, _ = get_model(edm_args, train_loader)
-    # edm_model.to(device)
-    # edm_model.eval()
 
     # ---------------------------
     # Predictor model
@@ -352,7 +320,11 @@ if __name__ == "__main__":
     if not os.path.isdir(pred_args.exp_dir):
         os.makedirs(pred_args.exp_dir)
 
+    #with open(os.path.join(pred_args.exp_dir, "args_clean.txt"), "w") as f:
+        #json.dump(pred_args.__dict__, f, indent=2)
     with open(os.path.join(pred_args.exp_dir, "args_clean.txt"), "w") as f:
-        json.dump(pred_args.__dict__, f, indent=2)
-
+        args_dict = dict(pred_args.__dict__)
+        if "device" in args_dict:
+            args_dict["device"] = str(args_dict["device"])
+        json.dump(args_dict, f, indent=2)
     main(pred_args, device)
