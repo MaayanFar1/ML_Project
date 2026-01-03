@@ -105,6 +105,7 @@ class EGNN_predictor(nn.Module):
         h_final = h_final.view(bs, n_nodes, -1)
         return h_final.mean(dim=1)
 
+#TODO: understand 
     # def get_adj_matrix(self, n_nodes, batch_size, device):
     #     if n_nodes in self._edges_dict:
     #         edges_dic_b = self._edges_dict[n_nodes]

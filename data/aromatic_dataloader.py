@@ -54,7 +54,7 @@ class AromaticDataset(Dataset):
         self.rings_graph = args.rings_graph
         self.normalize = args.normalize
         self.max_nodes = args.max_nodes
-        self.return_adj = False
+        self.return_adj = False ##TODO: change to true
         self.dataset = args.dataset
         self.target_features = getattr(args, "target_features", None)
         self.target_features = (
@@ -92,6 +92,7 @@ class AromaticDataset(Dataset):
         self.num_node_features = node_features.shape[1]
         self.num_targets = y.shape[0]
 
+##TODO: understand
     def get_edge_mask_orientation(self):
         if self._edge_mask_orientation is None:
             self._edge_mask_orientation = torch.zeros(
