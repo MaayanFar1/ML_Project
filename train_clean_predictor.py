@@ -49,6 +49,7 @@ def compute_clean_loss(
     node_mask,
     edge_mask,
     target,
+    adj_full,
 ):
     # 1) Normalize coordinates and node features with EDM
     x_norm, h_norm, _ = normalize(
@@ -64,7 +65,8 @@ def compute_clean_loss(
     edge_mask_flat = edge_mask.view(bs, n_nodes * n_nodes)   # [bs, n_nodes^2]
 
     # 3) Forward pass
-    preds = model(xh, node_mask, edge_mask_flat)  # [bs, num_targets]
+    ##TODO : check 
+    preds = model(xh, node_mask, edge_mask_flat , adj_full)  # [bs, num_targets]
 
     # 5) L1 loss in normalized target space
     loss = l1_loss(preds, target)
@@ -86,7 +88,7 @@ def train_epoch_clean(
     rl_loss = []
 
     with tqdm(dataloader, unit="batch", desc=f"Train (clean) {epoch}") as tepoch:
-        for i, (x, node_mask, edge_mask, node_features, y) in enumerate(tepoch):
+        for i, (x, node_mask, edge_mask, node_features, y , adj_full) in enumerate(tepoch):
             x = x.to(args.device)
             y = y.to(args.device)
             node_mask = node_mask.to(args.device).unsqueeze(2)
@@ -104,6 +106,7 @@ def train_epoch_clean(
                 node_mask,
                 edge_mask,
                 y,
+                adj_full,
             )
 
             # backprop
@@ -142,7 +145,7 @@ def val_epoch_clean(
         loss_list = []
         rl_loss = []
 
-        for i, (x, node_mask, edge_mask, node_features, y) in enumerate(dataloader):
+        for i, (x, node_mask, edge_mask, node_features, y , adj_full) in enumerate(dataloader):
             x = x.to(args.device)
             y = y.to(args.device)
             node_mask = node_mask.to(args.device).unsqueeze(2)
@@ -160,6 +163,7 @@ def val_epoch_clean(
                 node_mask,
                 edge_mask,
                 y,
+                adj_full,
             )
 
             loss_list.append(loss.item())

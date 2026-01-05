@@ -54,7 +54,7 @@ class AromaticDataset(Dataset):
         self.rings_graph = args.rings_graph
         self.normalize = args.normalize
         self.max_nodes = args.max_nodes
-        self.return_adj = False ##TODO: change to true
+        self.return_adj = True ##TODO: change to true
         self.dataset = args.dataset
         self.target_features = getattr(args, "target_features", None)
         self.target_features = (
@@ -88,7 +88,7 @@ class AromaticDataset(Dataset):
             num_files = round(len(self.examples) * args.sample_rate)
             self.examples = self.examples[:num_files]
 
-        x, node_mask, edge_mask, node_features, y = self.__getitem__(0)[:5]
+        x, node_mask, edge_mask, node_features, y , adj_full = self.__getitem__(0)[:6]
         self.num_node_features = node_features.shape[1]
         self.num_targets = y.shape[0]
 
@@ -191,7 +191,9 @@ class AromaticDataset(Dataset):
 
         return x, adj, node_features
 
-
+##TODO: check
+##TODO: return back to original
+    
     def get_all(self, df_row):
         # extract targets
         y = torch.tensor(
@@ -220,18 +222,31 @@ class AromaticDataset(Dataset):
             # mark the orientation nodes as additional ring type
             node_features_full[self.max_nodes : self.max_nodes + n_nodes, -1] = 1
 
-            edge_mask_tmp = node_mask[: self.max_nodes].unsqueeze(0) * node_mask[
-                : self.max_nodes
-            ].unsqueeze(1)
-            # mask diagonal
+            # edge_mask_tmp = node_mask[: self.max_nodes].unsqueeze(0) * node_mask[
+            #     : self.max_nodes
+            # ].unsqueeze(1)
+            # # mask diagonal
+            # diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
+            # edge_mask_tmp *= diag_mask
+            # edge_mask = self.get_edge_mask_orientation()
+            # edge_mask[: self.max_nodes, : self.max_nodes] = edge_mask_tmp
+
+            edge_mask_tmp = node_mask[:self.max_nodes].unsqueeze(0) * node_mask[:self.max_nodes].unsqueeze(1)
+
+            # pad ring adjacency to max_nodes
+            adj_full = zeros(self.max_nodes, self.max_nodes)
+            adj_full[:n_nodes, :n_nodes] = adj
+
+            # keep only adjacent ring↔ring edges
+            edge_mask_tmp = edge_mask_tmp * adj_full
+
+            # (optional) remove diagonal
             diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
             edge_mask_tmp *= diag_mask
-            edge_mask = self.get_edge_mask_orientation()
-            edge_mask[: self.max_nodes, : self.max_nodes] = edge_mask_tmp
 
-            if self.return_adj:
-                adj_full = self.get_edge_mask_orientation()
-                adj_full[:n_nodes, :n_nodes] = adj
+            edge_mask = self.get_edge_mask_orientation()
+            edge_mask[:self.max_nodes, :self.max_nodes] = edge_mask_tmp
+
         else:
             # adjust to max nodes shape
             n_nodes = x.shape[0]
@@ -245,22 +260,31 @@ class AromaticDataset(Dataset):
             node_features_full[:n_nodes, :] = node_features
             # node_features_full = zeros(self.max_nodes, 0)
 
-            # edge_mask = zeros(self.max_nodes, self.max_nodes)
+            # Tomer comments : edge_mask = zeros(self.max_nodes, self.max_nodes)
             # edge_mask[:n_nodes, :n_nodes] = adj
             # edge_mask = edge_mask.view(-1, 1)
 
+            #Tomer code:  edge_mask = node_mask.unsqueeze(0) * node_mask.unsqueeze(1)
+            # # mask diagonal
+            # diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
+            # edge_mask *= diag_mask
+
+            # valid nodes mask (padding)
             edge_mask = node_mask.unsqueeze(0) * node_mask.unsqueeze(1)
-            # mask diagonal
+
+            # pad adjacency to max_nodes
+            adj_full = zeros(self.max_nodes, self.max_nodes)
+            adj_full[:n_nodes, :n_nodes] = adj  # adj is [n_nodes, n_nodes]
+
+            # keep only adjacent edges
+            edge_mask = edge_mask * adj_full
+
+            # optional: ensure no self-edges (your adj already has 0 diagonal, but keep it safe)
             diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
             edge_mask *= diag_mask
-            # edge_mask = edge_mask.view(-1, 1)
-
-            if self.return_adj:
-                adj_full = zeros(self.max_nodes, self.max_nodes)
-                adj_full[:n_nodes, :n_nodes] = adj
 
         if self.return_adj:
-            return x_full, node_mask, edge_mask, node_features_full, adj_full, y
+            return x_full, node_mask, edge_mask, node_features_full, y, adj_full
         else:
             return x_full, node_mask, edge_mask, node_features_full, y
 
