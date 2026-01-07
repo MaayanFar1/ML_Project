@@ -60,7 +60,7 @@ class EGNN_predictor(nn.Module):
         self._edges_dict = {}
 
 
-    def forward(self, xh, node_mask, edge_mask):
+    def forward(self, xh, node_mask, edge_mask , adj_full):
         """
         Parameters
         ----------
@@ -80,7 +80,20 @@ class EGNN_predictor(nn.Module):
         bs, n_nodes, dims = xh.shape
         
         # Build fully-connected graph
-        edges = self.get_adj_matrix(n_nodes, bs, self.device)
+        # edges = self.get_adj_matrix(n_nodes, bs, self.device)
+        
+        edges = []
+        for b in range(bs):
+            valid = node_mask[b].squeeze(-1).bool()   # [N]
+            A = adj_full[b] > 0
+
+            src, dst = torch.where(A & valid.unsqueeze(0) & valid.unsqueeze(1))
+
+            src = src + b * n_nodes
+            dst = dst + b * n_nodes
+            edges.append(torch.stack([src, dst], dim=0))
+
+        edges = torch.cat(edges, dim=1)   # [2, E_total]
         edges = [e.to(xh.device) for e in edges]
         
         node_mask = node_mask.view(bs * n_nodes, 1)
@@ -98,7 +111,7 @@ class EGNN_predictor(nn.Module):
         
         # EGNN message passing
         h_final, _ = self.egnn(
-            h, x, edges, node_mask=node_mask, edge_mask=edge_mask, edge_attr=edge_attr
+            h, x, edges, node_mask=node_mask, edge_mask=None, edge_attr=edge_attr
         )
         
         # Graph-level aggregation
