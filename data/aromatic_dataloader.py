@@ -191,8 +191,45 @@ class AromaticDataset(Dataset):
 
         return x, adj, node_features
 
-##TODO: check
-##TODO: return back to original
+# ------------------------------------------------------------
+# adj_full:
+#   Shape:
+#     - orientation = False : [max_nodes, max_nodes]
+#     - orientation = True  : [2 * max_nodes, 2 * max_nodes]
+#
+#   Meaning:
+#     adj_full[i, j] = 1  ⇔  there is a REAL graph edge between node i and node j
+#                          (e.g. ring–ring adjacency from get_rings),
+#                          AND both nodes correspond to actual (unpadded) nodes.
+#
+#   Properties:
+#     - Contains ONLY true structural edges (NOT fully connected)
+#     - Zeros for padded nodes
+#     - Diagonal is zero (no self-loops unless explicitly added)
+#     - Used to define the actual graph connectivity
+#
+#
+# edge_mask:
+#   Shape:
+#     - orientation = False : [max_nodes, max_nodes]
+#     - orientation = True  : [2 * max_nodes, 2 * max_nodes]
+#
+#   Meaning:
+#     edge_mask[i, j] = 1  ⇔  messages are ALLOWED to pass between nodes i and j
+#                          during message passing
+#
+#   Properties:
+#     - Masks out padded nodes (i or j not valid)
+#     - Diagonal is always zero (no self-messages)
+#     - For orientation=True, also enables edges between:
+#           ring node i  <->  its corresponding orientation node (max_nodes + i)
+#     - May include edges that are NOT real chemical edges
+#       (i.e. edge_mask is a computational mask, not structural adjacency)
+#
+#   Important distinction:
+#     - adj_full defines *graph structure*
+#     - edge_mask defines *where message passing is permitted*
+# ------------------------------------------------------------
     
     def get_all(self, df_row):
         # extract targets
