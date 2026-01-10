@@ -201,11 +201,15 @@ class AromaticDataset(Dataset):
 #     adj_full[i, j] = 1  ⇔  there is a REAL graph edge between node i and node j
 #                          (e.g. ring–ring adjacency from get_rings),
 #                          AND both nodes correspond to actual (unpadded) nodes.
+#                          or, i & j are node and its orientation.
+#
 #
 #   Properties:
 #     - Contains ONLY true structural edges (NOT fully connected)
 #     - Zeros for padded nodes
 #     - Diagonal is zero (no self-loops unless explicitly added)
+#     - For orientation=True, also enables edges between:
+#           ring node i  <->  its corresponding orientation node (max_nodes + i)
 #     - Used to define the actual graph connectivity
 #
 #
@@ -271,8 +275,13 @@ class AromaticDataset(Dataset):
             edge_mask_tmp = node_mask[:self.max_nodes].unsqueeze(0) * node_mask[:self.max_nodes].unsqueeze(1)
 
             # pad ring adjacency to max_nodes
-            adj_full = zeros(self.max_nodes*2 , self.max_nodes*2 )
+            adj_full = zeros(self.max_nodes * 2, self.max_nodes * 2)
             adj_full[:n_nodes, :n_nodes] = adj
+
+            # mark True in orientation connections
+            for i in range(self.max_nodes):
+                adj_full[i, self.max_nodes + i] = 1
+                adj_full[self.max_nodes + i, i] = 1
 
             # keep only adjacent ring↔ring edges
             edge_mask_tmp = edge_mask_tmp * adj_full[:self.max_nodes, :self.max_nodes] 
@@ -283,10 +292,6 @@ class AromaticDataset(Dataset):
 
             edge_mask = self.get_edge_mask_orientation()
             edge_mask[:self.max_nodes, :self.max_nodes] = edge_mask_tmp
-
-            for i in range(self.max_nodes):
-                adj_full[i, self.max_nodes + i] = 1
-                adj_full[self.max_nodes + i, i] = 1
 
         else:
             # adjust to max nodes shape
