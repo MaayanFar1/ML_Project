@@ -271,11 +271,11 @@ class AromaticDataset(Dataset):
             edge_mask_tmp = node_mask[:self.max_nodes].unsqueeze(0) * node_mask[:self.max_nodes].unsqueeze(1)
 
             # pad ring adjacency to max_nodes
-            adj_full = zeros(self.max_nodes, self.max_nodes)
+            adj_full = zeros(self.max_nodes*2 , self.max_nodes*2 )
             adj_full[:n_nodes, :n_nodes] = adj
 
             # keep only adjacent ring↔ring edges
-            edge_mask_tmp = edge_mask_tmp * adj_full
+            edge_mask_tmp = edge_mask_tmp * adj_full[:self.max_nodes, :self.max_nodes] 
 
             # (optional) remove diagonal
             diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
@@ -283,6 +283,10 @@ class AromaticDataset(Dataset):
 
             edge_mask = self.get_edge_mask_orientation()
             edge_mask[:self.max_nodes, :self.max_nodes] = edge_mask_tmp
+
+            for i in range(self.max_nodes):
+                adj_full[i, self.max_nodes + i] = 1
+                adj_full[self.max_nodes + i, i] = 1
 
         else:
             # adjust to max nodes shape
