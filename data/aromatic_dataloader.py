@@ -18,6 +18,7 @@ from data.mol import Mol, load_xyz, from_rdkit
 from data.ring import RINGS_DICT
 from utils.ring_graph import get_rings, get_rings_adj
 from utils.molgraph import get_connectivity_matrix, get_edges
+import os, inspect
 
 DTYPE = torch.float32
 INT_DTYPE = torch.int8
@@ -29,7 +30,7 @@ ATOMS_LIST = {
 }
 RINGS_LIST = {
     "cata": ["Bn"],
-    "peri": ["Bn"],
+    "peri": ["Bn", "Cbd"],
     "hetro": list(RINGS_DICT.keys()) + ["."],
 }
 
@@ -292,6 +293,10 @@ class AromaticDataset(Dataset):
 
             edge_mask = self.get_edge_mask_orientation()
             edge_mask[:self.max_nodes, :self.max_nodes] = edge_mask_tmp
+
+            for i in range(n_nodes):
+                adj_full[i, self.max_nodes + i] = 1
+                adj_full[self.max_nodes + i, i] = 1
 
         else:
             # adjust to max nodes shape
