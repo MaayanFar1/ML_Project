@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from data.aromatic_dataloader import create_data_loaders
 from gradram import plot_mol_gradram, grad_ram
 from train_clean_predictor import get_cond_predictor_model
+from utils.utils_edm import normalize
 
 import warnings
 
@@ -41,7 +42,7 @@ def interpretation(model, dataloader, args):
         else:
             print(i, name)
             
-            ##TODO: we changed to the egnn model 
+            # we changed to the egnn model 
             x_full, node_mask, edge_mask, node_features_full, y, adj_full = dataloader.dataset.get_all(df_row)
             y = y.to(args.device)
             x_full = x_full.to(args.device)
@@ -55,13 +56,9 @@ def interpretation(model, dataloader, args):
                 {"categorical": node_features_full, "integer": torch.zeros(0, device=x.device)},
                 node_mask,
             )
-
-            # 2) Build [x_norm | h_norm] input
-            xh = torch.cat([x_norm, h_norm["categorical"]], dim=-1)  # [bs, n_nodes, d+in_nf]
-            
+            xh = torch.cat([x_norm, h_norm["categorical"]], dim=-1)  # Build [x_norm | h_norm] input, size [bs, n_nodes, d+in_nf]
             bs, n_nodes, _ = x_full.shape
             edge_mask_flat = edge_mask.view(bs, n_nodes * n_nodes)   # [bs, n_nodes^2]
-
             pred = model(xh, node_mask , edge_mask_flat, adj_full )
 
             y = y.cpu() * dataloader.dataset.std + dataloader.dataset.mean
