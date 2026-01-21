@@ -88,37 +88,59 @@ def moldraw(ax,xr, _molrepr, _edges, plot_h=False):
 
     return None
 
-def plot_mol_gradram(g, mol, edges, grad_ram_weights, value,
-                     target_features, v=False, h=False,
-                     rotation=0, size=2500, title=True):
+def plot_mol_gradram_from_tensors(
+    x_full,
+    node_mask,
+    mol,
+    edges,
+    grad_ram_weights,
+    value,
+    target_features,
+    v=False, h=False,
+    rotation=0, size=2500, title=True
+):
 
     plt.rcParams.update({'font.size': 12})
     fig, ax = plt.subplots(1, 1)
     ax.set_aspect('equal')
     ax.axis('off')
-    x = g.ndata['x'].detach().cpu().numpy()
+
+    # x_full: [1, n_nodes, 3] -> [n_nodes, 3]
+    x = x_full[0].detach().cpu().numpy()
+
+    # apply node mask if needed
+    if node_mask is not None:
+        mask = node_mask[0,:,0].detach().cpu().numpy().astype(bool)
+        x = x[mask]
+        grad_ram_weights = grad_ram_weights[mask]
+
+    # align
     Vt = align_to_x_plane(x)
     Vt2 = align_manual(x, rotation)
     Vt = Vt.T @ Vt2.T
     x = x[:,:2] @ Vt.T
-    xm = np.array([x[:,0].max() + x[:,0].min(),x[:,1].max() + x[:,1].min()])/2
+
+    xm = np.array([ x[:,0].max() + x[:,0].min(), x[:,1].max() + x[:,1].min()]) / 2
     x = x - xm
 
+    # molecule coordinates
     x_atoms = mol.get_coord()[:,:2]
     x_atoms = x_atoms @ Vt.T - xm
     x, x_atoms = flip(x, x_atoms, v=v, h=h)
 
+    # normalize weights
     w_scaled = grad_ram_weights / np.abs(grad_ram_weights).max()
-    ax.scatter(x[:, 0], x[:, 1], s=size, c=w_scaled, alpha=0.5,
-               cmap='coolwarm', vmin=-1, vmax=1)
 
-    for i in range(grad_ram_weights.shape[0]):
-        ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]),
-                    ha='center', va='center')
+    ax.scatter( x[:, 0], x[:, 1], s=size, c=w_scaled, alpha=0.5, cmap='coolwarm', vmin=-1, vmax=1)
+
+    for i in range(len(grad_ram_weights)):
+        ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]), ha='center', va='center')
 
     # plot molecule
     moldraw(ax, x_atoms, mol, edges)
-    ax.set_title(f"{target_features}: {value:.3f} eV", y=0.1, pad=-25, verticalalignment="top")
+    if title:
+        ax.set_title(f"{target_features}: {value:.3f} eV", y=0.1, pad=-25, verticalalignment="top")
+    
     return fig
 
 
