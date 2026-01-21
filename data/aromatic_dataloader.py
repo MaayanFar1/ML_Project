@@ -280,7 +280,8 @@ class AromaticDataset(Dataset):
             adj_full[:n_nodes, :n_nodes] = adj
 
             # mark True in orientation connections
-            for i in range(self.max_nodes):
+            #TODO : change the range to n_nodes
+            for i in range(n_nodes):
                 adj_full[i, self.max_nodes + i] = 1
                 adj_full[self.max_nodes + i, i] = 1
 
@@ -293,10 +294,6 @@ class AromaticDataset(Dataset):
 
             edge_mask = self.get_edge_mask_orientation()
             edge_mask[:self.max_nodes, :self.max_nodes] = edge_mask_tmp
-
-            for i in range(n_nodes):
-                adj_full[i, self.max_nodes + i] = 1
-                adj_full[self.max_nodes + i, i] = 1
 
         else:
             # adjust to max nodes shape

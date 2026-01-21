@@ -7,11 +7,10 @@ class Args(argparse.ArgumentParser):
         super().__init__(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         # data param
         self.add_argument('--csv-file',
-                          default="/home/tomerweiss/aromatic/Polycyclic-Aromatic-Prediction-and-Design/data/dft-data-8678.csv",
+                          default="/home/maayanfarkash/proj/PBHs-design/Compas1/compas-1x.csv",
                           type=str,
                           help='Path to the csv files which contain the molecules names and target features.')
-        self.add_argument('--xyz-root', default='/home/tomerweiss/aromatic/Polycyclic-Aromatic-Prediction-and-Design/'
-                                                'data/dft-data-8678-xyzs/', type=str,
+        self.add_argument('--xyz-root', default='/home/maayanfarkash/proj/PBHs-design/Compas1/pahs-cata-34072-xyz/', type=str,
                           help='Path to the folder which contains the xyz files.')
 
         # task param
@@ -39,24 +38,16 @@ class Args(argparse.ArgumentParser):
         self.add_argument('--batch-size', type=int, default=64,  help='The size of the batch.')
 
         # Model parameters
-        self.add_argument('--model', type=str, default='SE3Transformer',
-                            help="String name of model")
-        self.add_argument('--num_layers', type=int, default=6,
-                            help="Number of equivariant layers")
-        self.add_argument('--num_degrees', type=int, default=6,
-                            help="Number of irreps {0,1,...,num_degrees-1}")
-        self.add_argument('--num_channels', type=int, default=16,
-                            help="Number of channels in middle layers")
-        self.add_argument('--num_nlayers', type=int, default=0,
-                            help="Number of layers for nonlinearity")
-        self.add_argument('--div', type=float, default=4,
-                            help="Low dimensional embedding fraction")
-        self.add_argument('--pooling', type=str, default='avg',
-                            help="Choose from avg or max")
-        self.add_argument('--head', type=int, default=1,
-                            help="Number of attention heads")
+        self.add_argument("--dp", type=eval, default=True, help="Data parallelism")
+        self.add_argument("--n_layers", type=int, default=12, help="number of layers")
+        self.add_argument("--nf", type=int, default=196, help="number of layers")
+        self.add_argument("--tanh", type=eval, default=True)
+        self.add_argument("--attention", type=eval, default=True)
+        self.add_argument("--coords_range", type=float, default=4)
+        self.add_argument("--norm_constant", type=float, default=1)
+        self.add_argument("--normalization_factor", type=float, default=1)
 
-        self.add_argument('--num-workers', type=int, default=16, help='Number of workers for each dataloader.')
+        self.add_argument('--num-workers', type=int, default=8, help='Number of workers for each dataloader.')
 
         # Logging
         self.add_argument('--save_dir', type=str, default="summary/", help="Directory name to save models and logs")

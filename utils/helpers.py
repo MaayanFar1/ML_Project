@@ -214,7 +214,7 @@ def get_edm_args(exp_dir_path):
 
 def get_cond_predictor_args(exp_dir_path):
     args = PredictionArgs().parse_args([])
-    with open(exp_dir_path + "/args.txt", "r") as f:
+    with open(exp_dir_path + "/args_clean.txt", "r") as f:
         args.__dict__ = json.load(f)
     args.restore = True
     args.exp_dir = exp_dir_path

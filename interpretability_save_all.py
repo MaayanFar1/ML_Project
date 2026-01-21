@@ -27,14 +27,15 @@ def try_mkdir(path):
 def to_np(x):
     return x.cpu().detach().numpy()
 
+##we chnaged from df_all to df
 def interpretation(model, dataloader, args):
     model.eval()
-    samples = range(len(dataloader.dataset.df_all))
+    samples = range(len(dataloader.dataset.df))
     samples=np.random.permutation(samples)
 
     for i in samples:
-        df_row = dataloader.dataset.df_all.iloc[i]
-        mol, edges, name = dataloader.dataset.get_mol(df_row)
+        df_row = dataloader.dataset.df.iloc[i]
+        mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
         pdf_filename = f'{args.exp_dir}/interp-{args.target_features}/{args.target_features}-{name}.pdf'
         if os.path.isfile(pdf_filename):
             print(i)
@@ -47,13 +48,14 @@ def interpretation(model, dataloader, args):
             y = y.to(args.device)
             x_full = x_full.to(args.device)
             node_features_full = node_features_full.to(args.device)
-            node_mask = node_mask.to(args.device)
+            ##TODO: Update 
+            node_mask = node_mask.to(args.device).unsqueeze(2)
             edge_mask = edge_mask.to(args.device)
             adj_full = adj_full.to(args.device)
 
             x_norm, h_norm, _ = normalize(
                 x_full,
-                {"categorical": node_features_full, "integer": torch.zeros(0, device=x.device)},
+                {"categorical": node_features_full, "integer": torch.zeros(0, device=x_full.device)},
                 node_mask,
             )
             xh = torch.cat([x_norm, h_norm["categorical"]], dim=-1)  # Build [x_norm | h_norm] input, size [bs, n_nodes, d+in_nf]
@@ -96,7 +98,7 @@ if __name__ == '__main__':
     # args.name = 'SE3-knots-GAP_eV'
     print(args.name)
     args.exp_dir = f'{args.save_dir}/{args.name}'
-    with open(args.exp_dir + '/args.txt', "r") as f:
+    with open('/home/maayanfarkash/proj/prediction_summary/peri/args_clean.txt', "r") as f:
         args.__dict__ = json.load(f)
     args.restore = True
     args.transform = False

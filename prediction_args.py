@@ -31,7 +31,7 @@ class PredictionArgs(argparse.ArgumentParser):
         )
         self.add_argument("--restore", type=bool, default=None)
         self.add_argument("--lr", type=float, default=6e-4, help="Learning rate")
-        self.add_argument("--num_epochs", type=int, default=1000)
+        self.add_argument("--num_epochs", type=int, default=200)
         self.add_argument("--normalize", type=bool, default=True)
         self.add_argument("--batch-size", type=int, default=256)
         self.add_argument("--sample-rate", type=float, default=1.0)

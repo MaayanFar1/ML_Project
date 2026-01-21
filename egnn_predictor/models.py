@@ -257,7 +257,7 @@ class EGNN(nn.Module):
                 edge_mask=edge_mask,
             )
 
-            if i == self.n_layers - 1:
+            if i == self.n_layers - 1 and torch.is_grad_enabled():
                 h.register_hook(self._save_final_conv_grads)
 
         h = self.embedding_out(h)

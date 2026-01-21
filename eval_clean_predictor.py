@@ -89,16 +89,11 @@ def main(pred_args):
 
     cond_predictor = get_cond_predictor_model(pred_args, train_loader.dataset)
 
-    ##No need to pass over all the diffusion times 
-
-    ##TODO : remove the test part 
     print("Test (clean, t=0 only):")
     test_mae = val_epoch("test", cond_predictor, test_loader, pred_args)
     print(f"Test MAE (clean): {test_mae:.4f}")
+    
 
-    print("Val (clean, t=0 only):")
-    val_mae = val_epoch("val", cond_predictor, val_loader, pred_args)
-    print(f"Val MAE (clean): {val_mae:.4f}")
 
 
 if __name__ == "__main__":
@@ -108,7 +103,7 @@ if __name__ == "__main__":
     
     ##TODO: change the path and add the files
     pred_args = get_cond_predictor_args(
-        f"C:\Users\Maayan Farkash\Documents\project ML\our files\PBHs-design"
+        f"/home/maayanfarkash/proj/prediction_summary/peri"
     )
 
     print("\n\nArgs:", pred_args)
