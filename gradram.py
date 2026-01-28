@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch import nn, Tensor
 from adjustText import adjust_text
+import matplotlib.patheffects as pe
 
 from data.mol import Mol
 
@@ -89,6 +90,7 @@ def moldraw(ax,xr, _molrepr, _edges, plot_h=False):
 
     return None
 
+
 def plot_mol_gradram_from_tensors(
     x_full,
     node_mask,
@@ -97,6 +99,7 @@ def plot_mol_gradram_from_tensors(
     grad_ram_weights,
     value,
     target_features,
+    max_nodes, # added this
     v=False, h=False,
     rotation=0, size=2500, title=True
 ):
@@ -135,8 +138,37 @@ def plot_mol_gradram_from_tensors(
     ax.scatter( x[:, 0], x[:, 1], s=size, c=w_scaled, alpha=0.5, cmap='coolwarm', vmin=-1, vmax=1)
 
     for i in range(len(grad_ram_weights)):
-        ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]), ha='center', va='center')
-    
+        #ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]), ha='center', va='center')
+        # real node
+        if i < max_nodes:
+            ax.text(
+                x[i, 0],
+                x[i, 1],
+                f"{grad_ram_weights[i]:.3f}",
+                ha='center',
+                va='center',
+                fontsize=10,
+                color='black',
+                zorder=3
+            )
+
+        # orientation node
+        elif max_nodes <= i < 2 * max_nodes:
+            ax.text(
+                x[i, 0],
+                x[i, 1] - 0.15,  # vertical offset (tune if needed)
+                f"{grad_ram_weights[i]:.3f}",
+                ha='center',
+                va='top',
+                fontsize=8,
+                color='white',
+                zorder=3,
+                path_effects=[
+                    pe.Stroke(linewidth=1.5, foreground="black"),
+                    pe.Normal(),
+                ]
+            )
+   
     # texts = []
     # for i in range(len(grad_ram_weights)):
     #     texts.append(
@@ -155,9 +187,7 @@ def plot_mol_gradram_from_tensors(
     moldraw(ax, x_atoms, mol, edges)
     if title:
         ax.set_title(f"{target_features}: {value:.3f} eV", y=0.1, pad=-25, verticalalignment="top")
-    
+   
     return fig
-
-
 
 

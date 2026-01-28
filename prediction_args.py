@@ -16,7 +16,7 @@ class PredictionArgs(argparse.ArgumentParser):
             "--target_features",
             # default="HOMO-LUMO gap/eV,HOMO,electron_affinity e/V,ionization e/V,"
             # "reorganisation energy eV,oxidation potential eV",
-            default="LUMO_eV,GAP_eV,Erel_eV,aIP_eV,aEA_eV",
+            default="HOMO_eV,LUMO_eV,GAP_eV,Erel_eV,aIP_eV,aEA_eV",
             type=str,
             help="list of the names of the target features in the csv file - can be multiple targets seperated with commas"
             "[HOMO_eV, LUMO_eV, GAP_eV, Dipmom_Debye, Etot_eV, Etot_pos_eV,"

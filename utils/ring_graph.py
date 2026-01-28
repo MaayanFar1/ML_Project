@@ -31,6 +31,7 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
     """
     cycles = nx.minimum_cycle_basis(_molgraph)
     knots = []  # initialize list to return
+    knots_with_orientation = []
     i = 0
     for cycle in cycles:
         cycle_atoms = ""
@@ -58,13 +59,15 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
         if knot_type in NO_ORIENTATION_RINGS:
             # for these rings, the orientation is the centeroid of the ring
             orientation = [[x, y, z]]
+            knots_with_orientation.append(0)
         else:
             orientation = [
                 _atoms[atom].get_coord()
                 for atom in cycle
                 if _atoms[atom].element != "C"
             ]
-
+            knots_with_orientation.append(1)
+        
         if len(orientation) == 0:
             raise ValueError("No orientation for ring")
 
@@ -72,7 +75,7 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
         i += 1
         knots.append(_knot)
 
-    return knots
+    return knots , knots_with_orientation
 
 
 def get_rings_connectivity(_knots: Sequence[Ring]) -> Sequence[tuple]:
@@ -108,22 +111,3 @@ def get_rings_adj(_knots: Sequence[Ring]) -> Tensor:
             if i_atoms & j_atoms:
                 adj[i, j] = adj[j, i] = 1
     return adj
-
-
-def get_ringgraph(_atoms: Sequence[Atom], _molgraph: nx.graph) -> nx.graph:
-    """
-    Generate a graph of rings (Knot Objects).
-
-    in:
-    _atoms: A list of Atoms with their xyz coordinates in Angstroms.
-    _molgraph: Molecular graph.
-
-    out:
-    graph: generated graph of the knots.
-
-    """
-    knots = get_rings(_atoms, _molgraph)
-    edges = get_rings_connectivity(knots)
-    graph = nx.Graph(edges)  # generate mathematical graph as networkx Graph object
-
-    return graph

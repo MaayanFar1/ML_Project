@@ -76,24 +76,27 @@ def interpretation(model, dataloader, args):
         pred_cpu = pred.detach().cpu() * dataloader.dataset.std + dataloader.dataset.mean
 
         # backprop a scalar
-        pred[0, 0].backward()
+        ##TODO : [0,j] , j is the index of the target feature from the target features list that we traind on
+        pred[0, 1].backward()
         # target_idx = int(args.target_features)  # or explicit index
         # pred[0, target_idx].backward()
 
         final_conv_acts = model.final_conv_acts
         final_conv_grads = model.final_conv_grads
         grad_ram_weights = grad_ram(final_conv_acts, final_conv_grads, normalize=False)
+        #print("args before printing" , args.target_features)
 
         fig = plot_mol_gradram_from_tensors(
             x_full, node_mask, mol, edges, grad_ram_weights,
-            value=y[0, 0].item(),
-            target_features=args.target_features
+            value=y[0, 1].item(),
+            target_features= "GAP_eV" #args.target_features
         )
 
         fig.savefig(pdf_filename, bbox_inches="tight")
         plt.close(fig)
 
 def main(args):
+    
     # Prepare data
     train_loader, val_loader, test_loader = create_data_loaders(args)
 
@@ -113,8 +116,8 @@ if __name__ == '__main__':
     # np.random.seed(0)
 
     args.name='Erel'
-    # args.name = 'SE3-knots-GAP_eV'
     print(args.name)
+
     args.exp_dir = f'{args.save_dir}/{args.name}'
     with open('/home/maayanfarkash/proj/prediction_summary/peri/args_clean.txt', "r") as f:
         args.__dict__ = json.load(f)
@@ -122,7 +125,5 @@ if __name__ == '__main__':
     args.transform = False
     # Automatically choose GPU if available
     args.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-    print("\n\nArgs:", args)
 
     main(args)

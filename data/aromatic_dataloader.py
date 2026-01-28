@@ -55,7 +55,7 @@ class AromaticDataset(Dataset):
         self.rings_graph = args.rings_graph
         self.normalize = args.normalize
         self.max_nodes = args.max_nodes
-        self.return_adj = True ##TODO: change to true
+        self.return_adj = True
         self.dataset = args.dataset
         self.target_features = getattr(args, "target_features", None)
         self.target_features = (
@@ -137,12 +137,12 @@ class AromaticDataset(Dataset):
         preprocessed_path = os.path.join(preprocessed_dir, name + ".pt")
 
         if Path(preprocessed_path).is_file():
-            x, adj, node_features, orientation = torch.load(preprocessed_path)
+            x, adj, node_features, orientation, knots_with_orientation = torch.load(preprocessed_path)
         else:
             mol, edges, atom_connectivity, _ = self.get_mol(df_row, skip_hydrogen=True)
             # get_figure(mol, edges, showPlot=True, filename='4.png')
             mol_graph = nx.Graph(edges)
-            knots = get_rings(mol.atoms, mol_graph)
+            knots , knots_with_orientation = get_rings(mol.atoms, mol_graph)
             adj = get_rings_adj(knots)
             x = torch.tensor([k.get_coord() for k in knots], dtype=DTYPE)
             knot_type = torch.tensor(
@@ -154,10 +154,10 @@ class AromaticDataset(Dataset):
             orientation = [k.orientation for k in knots]
             
             tmp_path = preprocessed_path + ".tmp"
-            torch.save([x, adj, node_features, orientation], tmp_path)
+            torch.save([x, adj, node_features, orientation , knots_with_orientation], tmp_path)
             os.replace(tmp_path, preprocessed_path)
 
-        return x, adj, node_features, orientation
+        return x, adj, node_features, orientation, knots_with_orientation
 
 
     def get_atoms(self, df_row):
@@ -245,7 +245,7 @@ class AromaticDataset(Dataset):
             y = (y - self.mean) / self.std
 
         # creation of nodes, edges and there features
-        x, adj, node_features, orientation = self.get_rings(df_row)
+        x, adj, node_features, orientation, knots_with_orientation = self.get_rings(df_row)
 
         if self.orientation:
             # adjust to max nodes shape
@@ -257,7 +257,9 @@ class AromaticDataset(Dataset):
 
             node_mask = zeros(self.max_nodes * 2)
             node_mask[:n_nodes] = 1
-            node_mask[self.max_nodes : self.max_nodes + n_nodes] = 1
+            for i in range(n_nodes):
+                if knots_with_orientation[i]:
+                    node_mask[self.max_nodes + i] = 1
 
             node_features_full = zeros(self.max_nodes * 2, node_features.shape[1])
             node_features_full[:n_nodes, :] = node_features
@@ -280,10 +282,10 @@ class AromaticDataset(Dataset):
             adj_full[:n_nodes, :n_nodes] = adj
 
             # mark True in orientation connections
-            #TODO : change the range to n_nodes
             for i in range(n_nodes):
-                adj_full[i, self.max_nodes + i] = 1
-                adj_full[self.max_nodes + i, i] = 1
+                if knots_with_orientation[i]:
+                    adj_full[i, self.max_nodes + i] = 1
+                    adj_full[self.max_nodes + i, i] = 1
 
             # keep only adjacent ring↔ring edges
             edge_mask_tmp = edge_mask_tmp * adj_full[:self.max_nodes, :self.max_nodes] 
@@ -349,15 +351,23 @@ def get_paths(args):
     elif args.dataset == "cata":
         csv_path = "/home/maayanfarkash/proj/PBHs-design/Compas1/compas-1x.csv"
         xyz_path = "/home/maayanfarkash/proj/PBHs-design/Compas1/pahs-cata-34072-xyz"
+        args.name = "cata"
+        args.exp_dir = f"{args.save_dir}/{args.name}"
     elif args.dataset == "peri":
         csv_path = "/home/maayanfarkash/proj/PBHs-design/Compas3/compas-3x.csv"
         xyz_path = "/home/maayanfarkash/proj/PBHs-design/Compas3/compas3x-xyzs"
+        args.name = "peri"
+        args.exp_dir = f"{args.save_dir}/{args.name}"
     elif args.dataset == "hetro":
         csv_path = "/home/maayanfarkash/proj/PBHs-design/Pas_csv/db-474K-OPV-filtered.csv"
         xyz_path = "/home/maayanfarkash/proj/PBHs-design/Pas_xyz/db-474K-xyz"
+        args.name = "hetro"
+        args.exp_dir = f"{args.save_dir}/{args.name}"
     elif args.dataset == "hetro-dft":
         csv_path = "/home/maayanfarkash/proj/PBHs-design/Compas2D/compas-2D.csv"
         xyz_path = ""
+        args.name = "hetro-dft"
+        args.exp_dir = f"{args.save_dir}/{args.name}"
     else:
         raise NotImplementedError
     return csv_path, xyz_path
