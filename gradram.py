@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import nn, Tensor
+from adjustText import adjust_text
 
 from data.mol import Mol
 
@@ -135,6 +136,20 @@ def plot_mol_gradram_from_tensors(
 
     for i in range(len(grad_ram_weights)):
         ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]), ha='center', va='center')
+    
+    # texts = []
+    # for i in range(len(grad_ram_weights)):
+    #     texts.append(
+    #         ax.text(
+    #             x[i, 0], x[i, 1],
+    #             f"{grad_ram_weights[i]:.3f}",
+    #             fontsize=8,
+    #             bbox=dict(facecolor="white", edgecolor="none", alpha=0.6, pad=0.2),
+    #             zorder=3,
+    #         )
+    #     )
+
+    # adjust_text(texts, ax=ax)
 
     # plot molecule
     moldraw(ax, x_atoms, mol, edges)

@@ -77,6 +77,8 @@ def interpretation(model, dataloader, args):
 
         # backprop a scalar
         pred[0, 0].backward()
+        # target_idx = int(args.target_features)  # or explicit index
+        # pred[0, target_idx].backward()
 
         final_conv_acts = model.final_conv_acts
         final_conv_grads = model.final_conv_grads
