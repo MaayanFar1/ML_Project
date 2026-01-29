@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import numpy as np
 
-from egnn_predictor.gcl import E_GCL, GCL
+from egnn_predictor.gcl import E_GCL
 from utils.utils_edm import remove_mean, remove_mean_with_mask
 
 class EGNN_predictor(nn.Module):
@@ -118,7 +117,7 @@ class EGNN_predictor(nn.Module):
         h_final = h_final.view(bs, n_nodes, -1)
         return h_final.mean(dim=1)
 
-#TODO: understand 
+
     # def get_adj_matrix(self, n_nodes, batch_size, device):
     #     if n_nodes in self._edges_dict:
     #         edges_dic_b = self._edges_dict[n_nodes]
@@ -143,6 +142,7 @@ class EGNN_predictor(nn.Module):
 
     #     return edges
 
+
     def get_adj_matrix(self, n_nodes, batch_size, device):
         if n_nodes not in self._edges_dict:
             self._edges_dict[n_nodes] = {}
@@ -162,17 +162,21 @@ class EGNN_predictor(nn.Module):
 
         return self._edges_dict[n_nodes][batch_size]
 
+
     def unwrap_forward(self):
         return self._forward
+
 
     def unnormalize(self, pred):
         if self.mean is not None:
             pred = pred * self.std + self.mean
         return pred
     
+
     @property
     def final_conv_acts(self):
         return self.egnn.final_conv_acts
+
 
     @property
     def final_conv_grads(self):
@@ -236,9 +240,11 @@ class EGNN(nn.Module):
 
         self.to(self.device)
 
+
     def _save_final_conv_acts(self, module, input, output):
         # output is (h, x, _) from E_GCL
         self.final_conv_acts = output[0]
+
 
     def _save_final_conv_grads(self, grad):
         self.final_conv_grads = grad

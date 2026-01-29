@@ -78,28 +78,28 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
     return knots , knots_with_orientation
 
 
-def get_rings_connectivity(_knots: Sequence[Ring]) -> Sequence[tuple]:
-    """
-    get_connectivity(_knots: list(Knot)) -> list(tuple)
+# def get_rings_connectivity(_knots: Sequence[Ring]) -> Sequence[tuple]:
+#     """
+#     get_connectivity(_knots: list(Knot)) -> list(tuple)
 
-    Find out which Knot objects are connected and return those connections as a list of tuples ( = edges).
+#     Find out which Knot objects are connected and return those connections as a list of tuples ( = edges).
 
-    in:
-    _knots: A list of Knot objects.
+#     in:
+#     _knots: A list of Knot objects.
 
-    out:
-    edges: A list of tuples ( = edges) which represent which Knot objects are connected.
+#     out:
+#     edges: A list of tuples ( = edges) which represent which Knot objects are connected.
 
-    """
-    edges = []
-    for i in range(len(_knots)):
-        for j in range(i + 1, len(_knots)):
-            i_atoms = set(_knots[i].atoms)
-            j_atoms = set(_knots[j].atoms)
-            if i_atoms & j_atoms:
-                edges.append((i, j))
+#     """
+#     edges = []
+#     for i in range(len(_knots)):
+#         for j in range(i + 1, len(_knots)):
+#             i_atoms = set(_knots[i].atoms)
+#             j_atoms = set(_knots[j].atoms)
+#             if i_atoms & j_atoms:
+#                 edges.append((i, j))
 
-    return edges
+#     return edges
 
 
 def get_rings_adj(_knots: Sequence[Ring]) -> Tensor:

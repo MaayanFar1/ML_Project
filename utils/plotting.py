@@ -1,5 +1,7 @@
-import os
 
+## we dont use this file at all!!!
+
+import os
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,9 +11,6 @@ from torch import Tensor
 
 from data.aromatic_dataloader import ATOMS_LIST, RINGS_LIST
 from data.gor2goa import gor2goa, rdkit_valid
-
-# from matplotlib import cm
-# import networkx as nx
 
 from utils.helpers import positions2adj
 

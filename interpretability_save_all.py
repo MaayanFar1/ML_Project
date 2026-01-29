@@ -29,7 +29,7 @@ def to_np(x):
     return x.cpu().detach().numpy()
 
 ##we chnaged from df_all to df
-def interpretation(model, dataloader, args):
+def interpretation(model, dataloader, args, target_idx):
     model.eval()
     samples = range(len(dataloader.dataset.df))
     samples=np.random.permutation(samples)
@@ -76,20 +76,16 @@ def interpretation(model, dataloader, args):
         pred_cpu = pred.detach().cpu() * dataloader.dataset.std + dataloader.dataset.mean
 
         # backprop a scalar
-        ##TODO : [0,j] , j is the index of the target feature from the target features list that we traind on
-        pred[0, 1].backward()
-        # target_idx = int(args.target_features)  # or explicit index
-        # pred[0, target_idx].backward()
+        pred[0, target_idx].backward()
 
         final_conv_acts = model.final_conv_acts
         final_conv_grads = model.final_conv_grads
         grad_ram_weights = grad_ram(final_conv_acts, final_conv_grads, normalize=False)
-        #print("args before printing" , args.target_features)
 
         fig = plot_mol_gradram_from_tensors(
             x_full, node_mask, mol, edges, grad_ram_weights,
-            value=y[0, 1].item(),
-            target_features= "GAP_eV" #args.target_features
+            value=y[0, target_idx].item(),
+            target_features= args.target_features[target_idx] # if it doesnt compile, replace it with "GAP_eV"
         )
 
         fig.savefig(pdf_filename, bbox_inches="tight")
@@ -107,7 +103,7 @@ def main(args):
 
     # Run training
     print('Begin evaluation')
-    interpretation(model, train_loader, args)
+    interpretation(model, train_loader, args, target_idx=1)
 
 if __name__ == '__main__':
     args = Args().parse_args()

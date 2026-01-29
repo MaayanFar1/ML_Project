@@ -1,8 +1,6 @@
 import os
 import random
-import sys
 from pathlib import Path
-from time import time
 from typing import Tuple
 
 import networkx as nx
@@ -12,13 +10,12 @@ import pandas as pd
 from torch import zeros, Tensor
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.functional import one_hot
-from tqdm import tqdm
 
 from data.mol import Mol, load_xyz, from_rdkit
 from data.ring import RINGS_DICT
 from utils.ring_graph import get_rings, get_rings_adj
 from utils.molgraph import get_connectivity_matrix, get_edges
-import os, inspect
+import os
 
 DTYPE = torch.float32
 INT_DTYPE = torch.int8
@@ -93,7 +90,7 @@ class AromaticDataset(Dataset):
         self.num_node_features = node_features.shape[1]
         self.num_targets = y.shape[0]
 
-##TODO: understand
+
     def get_edge_mask_orientation(self):
         if self._edge_mask_orientation is None:
             self._edge_mask_orientation = torch.zeros(
@@ -104,14 +101,17 @@ class AromaticDataset(Dataset):
                 self._edge_mask_orientation[self.max_nodes + i, i] = True
         return self._edge_mask_orientation.clone()
 
+
     def __len__(self):
         return len(self.examples)
+
 
     def rescale_loss(self, x):
         # Convert from normalized to the original representation
         if self.normalize:
             x = x * self.std.to(x.device).mean()
         return x
+
 
     def get_mol(self, df_row, skip_hydrogen=False) -> Tuple[Mol, list, Tensor, str]:
         name = df_row["molecule"]
@@ -128,6 +128,7 @@ class AromaticDataset(Dataset):
             raise NotImplementedError(file_path)
         edges = get_edges(atom_connectivity)
         return mol, edges, atom_connectivity, name
+
 
     def get_rings(self, df_row):
         name = df_row["molecule"]
@@ -160,6 +161,7 @@ class AromaticDataset(Dataset):
         return x, adj, node_features, orientation, knots_with_orientation
 
 
+    # not in use
     def get_atoms(self, df_row):
         name = df_row["molecule"]
 
@@ -191,6 +193,7 @@ class AromaticDataset(Dataset):
             os.replace(tmp_path, preprocessed_path)
 
         return x, adj, node_features
+
 
 # ------------------------------------------------------------
 # adj_full:
@@ -235,7 +238,6 @@ class AromaticDataset(Dataset):
 #     - adj_full defines *graph structure*
 #     - edge_mask defines *where message passing is permitted*
 # ------------------------------------------------------------
-    
     def get_all(self, df_row):
         # extract targets
         y = torch.tensor(
@@ -266,15 +268,6 @@ class AromaticDataset(Dataset):
             # mark the orientation nodes as additional ring type
             node_features_full[self.max_nodes : self.max_nodes + n_nodes, -1] = 1
 
-            # edge_mask_tmp = node_mask[: self.max_nodes].unsqueeze(0) * node_mask[
-            #     : self.max_nodes
-            # ].unsqueeze(1)
-            # # mask diagonal
-            # diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
-            # edge_mask_tmp *= diag_mask
-            # edge_mask = self.get_edge_mask_orientation()
-            # edge_mask[: self.max_nodes, : self.max_nodes] = edge_mask_tmp
-
             edge_mask_tmp = node_mask[:self.max_nodes].unsqueeze(0) * node_mask[:self.max_nodes].unsqueeze(1)
 
             # pad ring adjacency to max_nodes
@@ -290,7 +283,7 @@ class AromaticDataset(Dataset):
             # keep only adjacent ring↔ring edges
             edge_mask_tmp = edge_mask_tmp * adj_full[:self.max_nodes, :self.max_nodes] 
 
-            # (optional) remove diagonal
+            # remove diagonal
             diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
             edge_mask_tmp *= diag_mask
 
@@ -329,7 +322,7 @@ class AromaticDataset(Dataset):
             # keep only adjacent edges
             edge_mask = edge_mask * adj_full
 
-            # optional: ensure no self-edges (your adj already has 0 diagonal, but keep it safe)
+            # ensure no self-edges (your adj already has 0 diagonal, but keep it safe)
             diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
             edge_mask *= diag_mask
 
@@ -337,6 +330,7 @@ class AromaticDataset(Dataset):
             return x_full, node_mask, edge_mask, node_features_full, y, adj_full
         else:
             return x_full, node_mask, edge_mask, node_features_full, y
+
 
     def __getitem__(self, idx):
         index = self.examples[idx]
