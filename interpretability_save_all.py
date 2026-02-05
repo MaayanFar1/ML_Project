@@ -37,7 +37,7 @@ def interpretation(model, dataloader, args, target_idx):
     out_dir = "/home/maayanfarkash/proj/prediction_summary/peri/interp"
     os.makedirs(out_dir, exist_ok=True)
 
-    for i in samples[:20]:
+    for i in samples:
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
@@ -85,7 +85,9 @@ def interpretation(model, dataloader, args, target_idx):
         fig = plot_mol_gradram_from_tensors(
             x_full, node_mask, mol, edges, grad_ram_weights,
             value=y[0, target_idx].item(),
-            target_features= args.target_features[target_idx] # if it doesnt compile, replace it with "GAP_eV"
+            target_features= args.target_features.split(",")[target_idx],
+            max_nodes = args.max_nodes
+
         )
 
         fig.savefig(pdf_filename, bbox_inches="tight")
@@ -103,7 +105,7 @@ def main(args):
 
     # Run training
     print('Begin evaluation')
-    interpretation(model, train_loader, args, target_idx=1)
+    interpretation(model, train_loader, args, target_idx=2)
 
 if __name__ == '__main__':
     args = Args().parse_args()

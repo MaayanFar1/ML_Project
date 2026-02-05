@@ -357,6 +357,7 @@ def get_paths(args):
         xyz_path = "/home/maayanfarkash/proj/PBHs-design/Pas_xyz/db-474K-xyz"
         args.name = "hetro"
         args.exp_dir = f"{args.save_dir}/{args.name}"
+        args.target_features ="HOMO-LUMO gap/eV,HOMO,LUMO,electron_affinity e/V,ionization e/V"
     elif args.dataset == "hetro-dft":
         csv_path = "/home/maayanfarkash/proj/PBHs-design/Compas2D/compas-2D.csv"
         xyz_path = ""

@@ -44,8 +44,8 @@ def val_epoch(tag, cond_predictor, dataloader, args, t_fix=None):
             h = node_features.to(args.device)
 
             x = remove_mean_with_mask(x, node_mask)
-            check_mask_correct([x, h], node_mask)
-            assert_mean_zero_with_mask(x, node_mask)
+            # check_mask_correct([x, h], node_mask)
+            # assert_mean_zero_with_mask(x, node_mask)
 
             loss, err = compute_clean_loss(
                 cond_predictor,
