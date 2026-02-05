@@ -9,7 +9,6 @@ from data.aromatic_dataloader import create_data_loaders
 from gradram import plot_mol_gradram_from_tensors, grad_ram
 from train_clean_predictor import get_cond_predictor_model
 from utils.utils_edm import normalize
-from adjustText import adjust_text
 
 import warnings
 
@@ -65,8 +64,6 @@ def interpretation(model, dataloader, args, target_idx):
         xh = torch.cat([x_norm, h_norm["categorical"]], dim=-1)
 
         bs, n_nodes, _ = x_full.shape
-
-        # edge_mask is [N,N] -> flatten to [1, N*N] (or [1, N*N, 1] depending on your model)
         edge_mask_flat = edge_mask.to(args.device).view(1, n_nodes * n_nodes)
 
         model.zero_grad(set_to_none=True)
@@ -74,7 +71,6 @@ def interpretation(model, dataloader, args, target_idx):
 
         y = y.cpu() * dataloader.dataset.std + dataloader.dataset.mean
         pred_cpu = pred.detach().cpu() * dataloader.dataset.std + dataloader.dataset.mean
-
         # backprop a scalar
         pred[0, target_idx].backward()
 
@@ -85,9 +81,8 @@ def interpretation(model, dataloader, args, target_idx):
         fig = plot_mol_gradram_from_tensors(
             x_full, node_mask, mol, edges, grad_ram_weights,
             value=y[0, target_idx].item(),
-            target_features= args.target_features.split(",")[target_idx],
-            max_nodes = args.max_nodes
-
+            target_features=args.target_features.split(",")[target_idx],
+            max_nodes=args.max_nodes
         )
 
         fig.savefig(pdf_filename, bbox_inches="tight")
@@ -109,9 +104,6 @@ def main(args):
 
 if __name__ == '__main__':
     args = Args().parse_args()
-
-    # torch.manual_seed(0)
-    # np.random.seed(0)
 
     args.name='Erel'
     print(args.name)
