@@ -36,7 +36,7 @@ def interpretation(model, dataloader, args, target_idx):
     out_dir = "/home/maayanfarkash/proj/prediction_summary/peri/interp"
     os.makedirs(out_dir, exist_ok=True)
 
-    for i in samples:
+    for i in samples[:500]:
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
