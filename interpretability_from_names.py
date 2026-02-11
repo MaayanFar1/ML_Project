@@ -26,14 +26,26 @@ def try_mkdir(path):
 
 def interpretation(model, dataloader, args, target_idx):
     model.eval()
-    names = [
-        'hc_c38h22_0pent_159',
-        'hc_c34h20_0pent_193',
-        'hc_c30h18_0pent_56',
-        'hc_c30h18_0pent_57',
-    ]
+    
+    # names = [
+    #     'hc_c38h22_0pent_159',
+    #     'hc_c34h20_0pent_193',
+    # ]
+
+    # Load pyrenes list
+    pyrenes_df = pd.read_csv(
+        "/home/maayanfarkash/proj/pyrenes/compas-3D_pyrenes.csv" # maybe need to adjust maayani :)
+    )
+    # adjust column name if needed
+    names = pyrenes_df["molecule"].tolist()
 
     df = dataloader.dataset.df
+
+    # Optional: keep only molecules that exist in your dataset
+    names = [n for n in names if n in set(df.molecule.values)]
+
+    print(f"Running interpretation on {len(names)} pyrene molecules")
+
     dir_name = f'{args.exp_dir}/interp-{args.target_features}'
     try_mkdir(dir_name)
 
