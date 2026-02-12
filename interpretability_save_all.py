@@ -33,14 +33,14 @@ def interpretation(model, dataloader, args, target_idx):
     samples = range(len(dataloader.dataset.df))
     samples=np.random.permutation(samples)
 
-    out_dir = "/home/maayanfarkash/proj/prediction_summary/hetro/interp"
+    out_dir = f'/home/maayanfarkash/proj/prediction_summary/hetro/interp_{args.target_features.split(",")[target_idx]}'
     os.makedirs(out_dir, exist_ok=True)
 
     for i in samples[:500]:
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
-        pdf_filename = f"{out_dir}/interp_{i:04d}_{name}.pdf"  # unique per sample
+        pdf_filename = f"{out_dir}/interp_{i:04d}_{name}_{args.target_features.split(",")[target_idx]}.pdf"  # unique per sample
 
         if os.path.isfile(pdf_filename):
             print(i, "exists -> skip")

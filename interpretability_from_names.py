@@ -27,7 +27,7 @@ def try_mkdir(path):
 
 def interpretation(model, dataloader, args, target_idx):
     model.eval()
-    
+    # load pyrenes
     pyrenes_df = pd.read_csv(
         "/home/maayanfarkash/proj/PBHs-design/compas-3D_pyrenes.csv"
     )

@@ -98,7 +98,7 @@ def plot_mol_gradram_from_tensors(
     grad_ram_weights,
     value,
     target_features,
-    max_nodes, # added this
+    max_nodes,
     v=False, h=False,
     rotation=0, size=2500, title=True
 ):
@@ -152,10 +152,10 @@ def plot_mol_gradram_from_tensors(
             )
 
         # orientation node
-        elif max_nodes <= i < 2 * max_nodes:
+        else: # max_nodes <= i < 2 * max_nodes
             ax.text(
                 x[i, 0],
-                x[i, 1] - 0.15,  # vertical offset (tune if needed)
+                x[i, 1] - 0.3,  # vertical offset
                 f"{grad_ram_weights[i]:.3f}",
                 ha='center',
                 va='top',
@@ -168,19 +168,6 @@ def plot_mol_gradram_from_tensors(
                 ]
             )
    
-    # texts = []
-    # for i in range(len(grad_ram_weights)):
-    #     texts.append(
-    #         ax.text(
-    #             x[i, 0], x[i, 1],
-    #             f"{grad_ram_weights[i]:.3f}",
-    #             fontsize=8,
-    #             bbox=dict(facecolor="white", edgecolor="none", alpha=0.6, pad=0.2),
-    #             zorder=3,
-    #         )
-    #     )
-
-    # adjust_text(texts, ax=ax)
 
     # plot molecule
     moldraw(ax, x_atoms, mol, edges)
