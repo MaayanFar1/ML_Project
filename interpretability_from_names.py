@@ -28,11 +28,12 @@ def try_mkdir(path):
 def interpretation(model, dataloader, args, target_idx):
     model.eval()
     # load pyrenes
-    pyrenes_df = pd.read_csv(
-        "/home/maayanfarkash/proj/PBHs-design/compas-3D_pyrenes.csv"
-    )
-    # adjust column name if needed
-    names = pyrenes_df["molecule"].tolist()
+    # pyrenes_df = pd.read_csv(
+    #     "/home/maayanfarkash/proj/PBHs-design/compas-3D_pyrenes.csv"
+    # )
+    # # adjust column name if needed
+    # names = pyrenes_df["molecule"].tolist()
+    names = ["C2M465519"]
 
     df = dataloader.dataset.df
 
@@ -41,11 +42,13 @@ def interpretation(model, dataloader, args, target_idx):
 
     print(f"Running interpretation on {len(names)} pyrene molecules")
 
-    dir_name = f'{args.exp_dir}/interp_Pyrenes_{args.target_features.split(",")[target_idx]}'
+    # dir_name = f'{args.exp_dir}/interp_Pyrenes_{args.target_features.split(",")[target_idx]}'
+    dir_name = f'{args.exp_dir}/hetro_try'
     try_mkdir(dir_name)
 
-    for i, name in enumerate(names[:500]):
-        pdf_filename = f'{dir_name}/{args.target_features.split(",")[target_idx]}-{name}.pdf'
+    for i, name in enumerate(names):
+        # pdf_filename = f'{dir_name}/{args.target_features.split(",")[target_idx]}-{name}.pdf'
+        pdf_filename= f'{dir_name}/hetro_try-{name}.pdf'
         if os.path.isfile(pdf_filename):
             print(i, name, "exists -> skip")
             continue
@@ -55,6 +58,10 @@ def interpretation(model, dataloader, args, target_idx):
         print(i, name)
 
         x_full, node_mask, edge_mask, node_features_full, y, adj_full = dataloader.dataset.get_all(df_row)
+
+        print("x_full is:\n", x_full, "\n")
+        # print("node_mask is:\n", node_mask, "\n")
+
 
         y = y.to(args.device).unsqueeze(0)
         x_full = x_full.to(args.device).unsqueeze(0)
@@ -102,7 +109,7 @@ def main(args):
     model = get_cond_predictor_model(args, val_loader.dataset)
 
     print("Begin evaluation")
-    interpretation(model, train_loader, args, target_idx=5)
+    interpretation(model, train_loader, args, target_idx=0)
 
 
 if __name__ == '__main__':
@@ -112,7 +119,7 @@ if __name__ == '__main__':
     print(args.name)
 
     args.exp_dir = f"{args.save_dir}/{args.name}"
-    with open('/home/maayanfarkash/proj/prediction_summary/peri/args_clean.txt', "r") as f:
+    with open('/home/maayanfarkash/proj/prediction_summary/hetro/args_clean.txt', "r") as f:
         args.__dict__ = json.load(f)
 
     args.restore = True
