@@ -105,9 +105,6 @@ def main(args):
 if __name__ == '__main__':
     args = Args().parse_args()
 
-    args.name='Erel'
-    print(args.name)
-
     args.exp_dir = f'{args.save_dir}/{args.name}'
     with open('/home/maayanfarkash/proj/prediction_summary/hetro/args_clean.txt', "r") as f:
         args.__dict__ = json.load(f)

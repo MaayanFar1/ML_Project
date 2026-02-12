@@ -9,7 +9,7 @@ class Args_EDM(argparse.ArgumentParser):
         # data param
         self.add_argument("--dataset", default="cata", type=str)
         self.add_argument("--rings_graph", type=bool, default=True)
-        self.add_argument("--max-nodes", default=11, type=str)
+        self.add_argument("--max-nodes", default=15, type=str)
 
         # training param
         self.add_argument("--name", type=str, default="cata-test")

@@ -59,10 +59,6 @@ def interpretation(model, dataloader, args, target_idx):
 
         x_full, node_mask, edge_mask, node_features_full, y, adj_full = dataloader.dataset.get_all(df_row)
 
-        print("x_full is:\n", x_full, "\n")
-        # print("node_mask is:\n", node_mask, "\n")
-
-
         y = y.to(args.device).unsqueeze(0)
         x_full = x_full.to(args.device).unsqueeze(0)
         node_features_full = node_features_full.to(args.device).unsqueeze(0)
@@ -114,9 +110,6 @@ def main(args):
 
 if __name__ == '__main__':
     args = Args().parse_args()
-
-    args.name = 'Erel'
-    print(args.name)
 
     args.exp_dir = f"{args.save_dir}/{args.name}"
     with open('/home/maayanfarkash/proj/prediction_summary/hetro/args_clean.txt', "r") as f:

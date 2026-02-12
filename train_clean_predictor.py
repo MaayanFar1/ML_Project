@@ -24,9 +24,6 @@ from data.aromatic_dataloader import create_data_loaders, AromaticDataset
 from prediction_args import PredictionArgs
 
 
-#from utils.args_edm import Args_EDM
-#from models_edm import get_model
-
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
@@ -63,7 +60,6 @@ def compute_clean_loss(
     edge_mask_flat = edge_mask.view(bs, n_nodes * n_nodes)   # [bs, n_nodes^2]
 
     # 3) Forward pass
-    ##TODO : check 
     preds = model(xh, node_mask, edge_mask_flat , adj_full)  # [bs, num_targets]
 
     # 5) L1 loss in normalized target space

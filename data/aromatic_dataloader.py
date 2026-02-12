@@ -249,30 +249,21 @@ class AromaticDataset(Dataset):
         # creation of nodes, edges and there features
         x, adj, node_features, orientation, knots_with_orientation = self.get_rings(df_row)
 
-        print("x is:\n", x, "\n")
-        print("orientation is:\n", orientation, "\n")
-
         if self.orientation:
             # adjust to max nodes shape
             n_nodes = x.shape[0]
-            print("n_nodes is:\n", n_nodes, "\n")
-            print("max_nodes is:\n", self.max_nodes, "\n")
-
             x_r = torch.tensor([random.sample(o, 1)[0] for o in orientation])
             x_full = zeros(self.max_nodes * 2, 3)
             x_full[:n_nodes] = x
             x_full[self.max_nodes : self.max_nodes + n_nodes] = x_r
-            print("x_full is:\n", x_full, "\n")
 
             node_mask = zeros(self.max_nodes * 2)
             node_mask[:n_nodes] = 1
             for i in range(n_nodes):
                 if knots_with_orientation[i]:
                     node_mask[self.max_nodes + i] = 1
-            print("node_mask is:\n", node_mask, "\n")
 
             x_full = x_full*node_mask.unsqueeze(1)
-            print("x_full after masking is:\n", x_full, "\n")
             
             node_features_full = zeros(self.max_nodes * 2, node_features.shape[1])
             node_features_full[:n_nodes, :] = node_features
@@ -313,15 +304,6 @@ class AromaticDataset(Dataset):
             node_features_full = zeros(self.max_nodes, node_features.shape[1])
             node_features_full[:n_nodes, :] = node_features
             # node_features_full = zeros(self.max_nodes, 0)
-
-            # Tomer comments : edge_mask = zeros(self.max_nodes, self.max_nodes)
-            # edge_mask[:n_nodes, :n_nodes] = adj
-            # edge_mask = edge_mask.view(-1, 1)
-
-            #Tomer code:  edge_mask = node_mask.unsqueeze(0) * node_mask.unsqueeze(1)
-            # # mask diagonal
-            # diag_mask = ~torch.eye(self.max_nodes, dtype=torch.bool)
-            # edge_mask *= diag_mask
 
             # valid nodes mask (padding)
             edge_mask = node_mask.unsqueeze(0) * node_mask.unsqueeze(1)
@@ -390,7 +372,7 @@ def get_splits(args, random_seed=42, val_frac=0.1, test_frac=0.1):
         )
         df = pd.read_csv(csv_path, usecols=["name", "nRings", "inchi"] + targets)
         df.rename(columns={"nRings": "n_rings", "name": "molecule"}, inplace=True)
-        #args.max_nodes = min(args.max_nodes, 10)
+        #args.max_nodes = min(args.max_nodes, 15)
     else:
         df = pd.read_csv(csv_path)
 
