@@ -33,7 +33,7 @@ def interpretation(model, dataloader, args, target_idx):
     samples = range(len(dataloader.dataset.df))
     samples=np.random.permutation(samples)
 
-    out_dir = "/home/maayanfarkash/proj/prediction_summary/peri/interp"
+    out_dir = "/home/maayanfarkash/proj/prediction_summary/hetro/interp"
     os.makedirs(out_dir, exist_ok=True)
 
     for i in samples[:500]:
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     print(args.name)
 
     args.exp_dir = f'{args.save_dir}/{args.name}'
-    with open('/home/maayanfarkash/proj/prediction_summary/peri/args_clean.txt', "r") as f:
+    with open('/home/maayanfarkash/proj/prediction_summary/hetro/args_clean.txt', "r") as f:
         args.__dict__ = json.load(f)
     args.restore = True
     args.transform = False

@@ -17,6 +17,7 @@ from args import Args
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import torch
+import pandas as pd
 
 
 def try_mkdir(path):
@@ -27,14 +28,8 @@ def try_mkdir(path):
 def interpretation(model, dataloader, args, target_idx):
     model.eval()
     
-    # names = [
-    #     'hc_c38h22_0pent_159',
-    #     'hc_c34h20_0pent_193',
-    # ]
-
-    # Load pyrenes list
     pyrenes_df = pd.read_csv(
-        "/home/maayanfarkash/proj/pyrenes/compas-3D_pyrenes.csv" # maybe need to adjust maayani :)
+        "/home/maayanfarkash/proj/PBHs-design/compas-3D_pyrenes.csv"
     )
     # adjust column name if needed
     names = pyrenes_df["molecule"].tolist()
@@ -46,11 +41,11 @@ def interpretation(model, dataloader, args, target_idx):
 
     print(f"Running interpretation on {len(names)} pyrene molecules")
 
-    dir_name = f'{args.exp_dir}/interp-{args.target_features}'
+    dir_name = f'{args.exp_dir}/interp_Pyrenes_{args.target_features.split(",")[target_idx]}'
     try_mkdir(dir_name)
 
-    for i, name in enumerate(names):
-        pdf_filename = f'{dir_name}/{args.target_features}-{name}.pdf'
+    for i, name in enumerate(names[:500]):
+        pdf_filename = f'{dir_name}/{args.target_features.split(",")[target_idx]}-{name}.pdf'
         if os.path.isfile(pdf_filename):
             print(i, name, "exists -> skip")
             continue
@@ -107,7 +102,7 @@ def main(args):
     model = get_cond_predictor_model(args, val_loader.dataset)
 
     print("Begin evaluation")
-    interpretation(model, train_loader, args, target_idx=2)
+    interpretation(model, train_loader, args, target_idx=5)
 
 
 if __name__ == '__main__':
