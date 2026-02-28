@@ -257,18 +257,18 @@ class AromaticDataset(Dataset):
             x_full[:n_nodes] = x
             x_full[self.max_nodes : self.max_nodes + n_nodes] = x_r
 
+            orientation_mask = torch.as_tensor(knots_with_orientation, dtype=node_mask.dtype)
+
             node_mask = zeros(self.max_nodes * 2)
             node_mask[:n_nodes] = 1
-            for i in range(n_nodes):
-                if knots_with_orientation[i]:
-                    node_mask[self.max_nodes + i] = 1
+            node_mask[self.max_nodes : self.max_nodes + n_nodes] = orientation_mask
 
             x_full = x_full*node_mask.unsqueeze(1)
             
             node_features_full = zeros(self.max_nodes * 2, node_features.shape[1])
             node_features_full[:n_nodes, :] = node_features
             # mark the orientation nodes as additional ring type
-            node_features_full[self.max_nodes : self.max_nodes + n_nodes, -1] = 1
+            node_features_full[self.max_nodes : self.max_nodes + n_nodes, -1] = orientation_mask
 
             edge_mask_tmp = node_mask[:self.max_nodes].unsqueeze(0) * node_mask[:self.max_nodes].unsqueeze(1)
 
@@ -277,10 +277,9 @@ class AromaticDataset(Dataset):
             adj_full[:n_nodes, :n_nodes] = adj
 
             # mark True in orientation connections
-            for i in range(n_nodes):
-                if knots_with_orientation[i]:
-                    adj_full[i, self.max_nodes + i] = 1
-                    adj_full[self.max_nodes + i, i] = 1
+            indices = orientation_mask.nonzero(as_tuple=True)[0]
+            adj_full[indices, self.max_nodes + indices] = 1
+            adj_full[self.max_nodes + indices, indices] = 1
 
             # keep only adjacent ring↔ring edges
             edge_mask_tmp = edge_mask_tmp * adj_full[:self.max_nodes, :self.max_nodes] 
