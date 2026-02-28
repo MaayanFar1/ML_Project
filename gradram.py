@@ -118,21 +118,24 @@ def plot_mol_gradram_from_tensors(
         grad_ram_weights = grad_ram_weights[mask]
 
     # align
-    Vt = align_to_x_plane(x)
-    Vt2 = align_manual(x, rotation)
-    Vt = Vt.T @ Vt2.T
-    x = x[:,:2] @ Vt.T
+    x3d, Vt, xmean = align_to_xy_plane(x)
+    x = x3d[:, :2]
 
-    xm = np.array([ x[:,0].max() + x[:,0].min(), x[:,1].max() + x[:,1].min()]) / 2
+    # rotate atoms with SAME centering+rotation as nodes
+    x_atoms = (mol.get_coord() - xmean) @ Vt.T
+    x_atoms = x_atoms[:, :2]
+
+    xm = np.array([x[:, 0].max() + x[:, 0].min(),
+                x[:, 1].max() + x[:, 1].min()]) / 2
     x = x - xm
+    x_atoms = x_atoms - xm   # <-- important
 
-    # molecule coordinates
-    x_atoms = mol.get_coord()[:,:2]
-    x_atoms = x_atoms @ Vt.T - xm
     x, x_atoms = flip(x, x_atoms, v=v, h=h)
 
-    # normalize weights
-    w_scaled = grad_ram_weights / np.abs(grad_ram_weights).max()
+    # normalize weights safely
+    den = np.abs(grad_ram_weights).max()
+    den = den if den > 0 else 1.0
+    w_scaled = grad_ram_weights / den
 
     ax.scatter( x[:, 0], x[:, 1], s=size, c=w_scaled, alpha=0.5, cmap='coolwarm', vmin=-1, vmax=1)
 
@@ -167,13 +170,20 @@ def plot_mol_gradram_from_tensors(
                     pe.Normal(),
                 ]
             )
-   
+
 
     # plot molecule
     moldraw(ax, x_atoms, mol, edges)
     if title:
         ax.set_title(f"{target_features}: {value:.3f} eV", y=0.1, pad=-25, verticalalignment="top")
-   
+
     return fig
+
+def align_to_xy_plane(x):
+    xm = x.mean(axis=0)
+    xc = x - xm
+    _, _, Vt = np.linalg.svd(xc, full_matrices=False)
+    x_rot = xc @ Vt.T
+    return x_rot, Vt, xm
 
 
