@@ -257,10 +257,9 @@ class AromaticDataset(Dataset):
             x_full[:n_nodes] = x
             x_full[self.max_nodes : self.max_nodes + n_nodes] = x_r
 
-            orientation_mask = torch.as_tensor(knots_with_orientation, dtype=node_mask.dtype)
-
             node_mask = zeros(self.max_nodes * 2)
             node_mask[:n_nodes] = 1
+            orientation_mask = torch.as_tensor(knots_with_orientation, dtype=node_mask.dtype)
             node_mask[self.max_nodes : self.max_nodes + n_nodes] = orientation_mask
 
             x_full = x_full*node_mask.unsqueeze(1)
