@@ -24,10 +24,11 @@ def try_mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
+
 def to_np(x):
     return x.cpu().detach().numpy()
 
-##we chnaged from df_all to df
+
 def interpretation(model, dataloader, args, target_idx):
     model.eval()
     samples = range(len(dataloader.dataset.df))
@@ -40,10 +41,15 @@ def interpretation(model, dataloader, args, target_idx):
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
-        pdf_filename = f'{out_dir}/interp_{i:04d}_{name}_{args.target_features.split(",")[target_idx]}.pdf'  # unique per sample
+        fig_path = f'{out_dir}/interp/{i:04d}_{name}_{args.target_features.split(",")[target_idx]}.pdf'  # unique per sample
+        analysis_path = f'{out_dir}/analysis_data/{name}_{args.target_features.split(',')[target_idx]}.pt'
 
-        if os.path.isfile(pdf_filename):
-            print(i, "exists -> skip")
+        if os.path.isfile(fig_path):
+            print(i, "fig exists -> skip")
+            continue
+
+        if os.path.isfile(analysis_path):
+            print(i, "analysis data exists -> skip")
             continue
 
         print(i, name)
@@ -85,8 +91,20 @@ def interpretation(model, dataloader, args, target_idx):
             max_nodes=args.max_nodes
         )
 
-        fig.savefig(pdf_filename, bbox_inches="tight")
+        torch.save({
+            "molecule_name": name,
+            "x_full": x_full.squeeze(0).cpu(),
+            "node_mask": node_mask.squeeze().cpu(),
+            "node_features_full": node_features_full.squeeze(0).cpu(),
+            "adj_full": adj_full.squeeze(0).cpu(),
+            "grad_ram_weights": grad_ram_weights.cpu(),
+            "target_value": y[0, target_idx].item(),
+            "prediction": pred_cpu[0, target_idx].item()
+        }, analysis_path)
+
+        fig.savefig(fig_path, bbox_inches="tight")
         plt.close(fig)
+
 
 def main(args):
     
