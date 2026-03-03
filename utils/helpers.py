@@ -1,12 +1,18 @@
 from typing import Tuple
 import json
+import os
 
 import torch
 from torch import Tensor
 
 from prediction_args import PredictionArgs
 from data.aromatic_dataloader import RINGS_LIST
+from data.ring import RINGS_DICT
 from utils.args_edm import Args_EDM
+
+import numpy as np
+import pandas as pd
+
 
 bn_bn_dist = {"min": 2.399, "mean": 2.445, "max": 2.481, "thr": 0.01}
 bn_bn_angels3_dict = {  # 0.001 and 0.999 quantiles
@@ -94,6 +100,7 @@ analyzed_rings = {
         },
     },
 }
+
 
 ring_distances_hetro = {
     "Pl-Bn": (2.13, 2.18),
@@ -195,11 +202,13 @@ def positions2adj(
 
     return dist, adj
 
+
 def switch_grad_off(models):
     for m in models:
         m.eval()
         for p in m.parameters():
             p.requires_grad = False
+
 
 def get_edm_args(exp_dir_path):
     args = Args_EDM().parse_args([])
@@ -212,6 +221,7 @@ def get_edm_args(exp_dir_path):
     )
     return args
 
+
 def get_cond_predictor_args(exp_dir_path):
     args = PredictionArgs().parse_args([])
     with open(exp_dir_path + "/args_clean.txt", "r") as f:
@@ -222,3 +232,138 @@ def get_cond_predictor_args(exp_dir_path):
         torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     return args
+
+
+def try_mkdir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def ensure_np(a):
+    """
+    Torch tensor -> numpy; numpy stays numpy.
+    """
+    if isinstance(a, torch.Tensor):
+        return a.detach().cpu().numpy()
+    return np.asarray(a)
+
+
+def node_type_from_onehot(node_features_row):
+    """
+    node_features_row: shape (C,) one-hot or soft one-hot.
+    Returns (type_index, type_name)
+    """
+    RING_NAMES = list(RINGS_DICT.keys())
+    type_idx = int(np.argmax(node_features_row))
+    type_name = RING_NAMES[type_idx]
+    return type_idx, type_name
+
+
+def save_molecule_node_csv(csv_path: str, x_full, node_features_full, gradramweights, node_mask, adj_full, max_nodes):
+    """
+    Saves CSV exactly to csv_path.
+    Columns:
+        node_idx, x, y, z, type, degree, IV, (optional Ring_indx)
+    Keeps rows where node_mask == 1
+    """
+
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+    x = ensure_np(x_full)
+    nf = ensure_np(node_features_full)
+    w = ensure_np(gradramweights)
+    adj = ensure_np(adj_full)
+    nm = ensure_np(node_mask)
+
+    # Handle batch dims
+    if x.ndim == 3:
+        x = x[0]
+    if nf.ndim == 3:
+        nf = nf[0]
+    if adj.ndim == 3:
+        adj = adj[0]
+    if w.ndim == 2 and w.shape[0] == 1:
+        w = w[0]
+
+    w = w.reshape(-1)
+
+    if nm.ndim == 3:
+        nm = nm[0]
+    if nm.ndim == 2 and nm.shape[1] == 1:
+        nm = nm[:, 0]
+
+    keep = nm.astype(bool)
+
+    # -------- REAL NODE DEGREE COMPUTATION --------
+    real_adj = adj[:max_nodes, :max_nodes].copy()
+
+    # Remove diagonal
+    np.fill_diagonal(real_adj, 0)
+
+    # Degree for real nodes
+    degrees = real_adj.sum(axis=1)
+
+    rows = []
+
+    # -------- Ring nodes --------
+    ring_indices = np.where(keep)[0]
+    ring_indices = ring_indices[ring_indices < max_nodes]
+
+    for i in ring_indices:
+        _, type_name = node_type_from_onehot(nf[i])
+        rows.append({
+            "node_idx": int(i),
+            "x": float(x[i, 0]),
+            "y": float(x[i, 1]),
+            "z": float(x[i, 2]),
+            "type": type_name,
+            "degree": int(degrees[i]),
+            "IV": float(w[i]),
+        })
+
+    # -------- Orientation nodes --------
+    orient_indices = np.where(keep)[0]
+    orient_indices = orient_indices[orient_indices >= max_nodes]
+
+    for i in orient_indices:
+        _, type_name = node_type_from_onehot(nf[i - max_nodes])
+        last_char = RINGS_DICT[type_name][-1]
+
+        rows.append({
+            "node_idx": int(i),
+            "x": float(x[i, 0]),
+            "y": float(x[i, 1]),
+            "z": float(x[i, 2]),
+            "type": last_char,
+            "degree": 1,  # orientation nodes connect only to their ring
+            "IV": float(w[i]),
+            "Ring_indx": int(i - max_nodes),
+        })
+
+    df = pd.DataFrame(rows)
+    df.to_csv(csv_path, index=False)
+
+    return csv_path
+
+
+# def save_all_molecules_csv(csv_paths, x_full_list, node_features_full_list, gradramweights_list, node_mask_list, max_nodes):
+#     """
+#     Saves each molecule to its corresponding path.
+#     `csv_paths` must be aligned with tensor lists.
+#     """
+
+#     paths = []
+
+#     for path, x_full, nf_full, w, nm in zip(csv_paths, x_full_list, node_features_full_list, gradramweights_list, node_mask_list):
+#         paths.append(save_molecule_node_csv(
+#             csv_path=path,
+#             x_full=x_full,
+#             node_features_full=nf_full,
+#             gradramweights=w,
+#             node_mask=nm,
+#             max_nodes=max_nodes
+#         ))
+
+#     return paths
+
+
