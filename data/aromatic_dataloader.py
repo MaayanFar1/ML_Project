@@ -129,6 +129,19 @@ class AromaticDataset(Dataset):
         edges = get_edges(atom_connectivity)
         return mol, edges, atom_connectivity, name
 
+    # def get_rings(self, df_row):
+    #     name = df_row["molecule"]
+    #     preprocessed_dir = self.xyz_root + "_rings_preprocessed"
+    #     preprocessed_path = os.path.join(preprocessed_dir, name + ".pt")
+
+    #     if not Path(preprocessed_path).is_file():
+    #         raise FileNotFoundError(
+    #             f"Missing preprocessed file for molecule '{name}': {preprocessed_path}\n"
+    #             f"Run the preprocessing script before training."
+    #         )
+
+    #     x, adj, node_features, orientation, knots_with_orientation = torch.load(preprocessed_path)
+    #     return x, adj, node_features, orientation, knots_with_orientation
 
     def get_rings(self, df_row):
         name = df_row["molecule"]

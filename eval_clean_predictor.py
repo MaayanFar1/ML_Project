@@ -39,6 +39,7 @@ def val_epoch(tag, cond_predictor, dataloader, args, t_fix=None):
             node_mask = node_mask.to(args.device).unsqueeze(2)
             edge_mask = edge_mask.to(args.device)
             h = node_features.to(args.device)
+            adj_full = adj_full.to(args.device)
 
             x = remove_mean_with_mask(x, node_mask)
             # check_mask_correct([x, h], node_mask)
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     
     ##TODO: change the path and add the files
     pred_args = get_cond_predictor_args(
-        f"/home/maayanfarkash/proj/prediction_summary/peri"
+        f"/home/maayanfarkash/proj/prediction_summary/hetro"
     )
 
     print("\n\nArgs:", pred_args)

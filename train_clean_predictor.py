@@ -88,6 +88,7 @@ def train_epoch_clean(
             node_mask = node_mask.to(args.device).unsqueeze(2)
             edge_mask = edge_mask.to(args.device)
             h = node_features.to(args.device)
+            adj_full = adj_full.to(args.device)
 
             x = remove_mean_with_mask(x, node_mask)
             #TODO: correct asserts
