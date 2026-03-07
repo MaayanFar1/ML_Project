@@ -9,6 +9,7 @@ from data.aromatic_dataloader import create_data_loaders
 from gradram import plot_mol_gradram_from_tensors, grad_ram
 from train_clean_predictor import get_cond_predictor_model
 from utils.utils_edm import normalize
+from utils.helpers import save_molecule_node_csv
 
 import warnings
 
@@ -20,13 +21,8 @@ import numpy as np
 import torch
 
 
-def try_mkdir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
-def to_np(x):
-    return x.cpu().detach().numpy()
+# def to_np(x):
+#     return x.cpu().detach().numpy()
 
 
 def interpretation(model, dataloader, args, target_idx):
@@ -34,21 +30,22 @@ def interpretation(model, dataloader, args, target_idx):
     samples = range(len(dataloader.dataset.df))
     samples=np.random.permutation(samples)
 
-    out_dir = f'/home/maayanfarkash/proj/prediction_summary/hetro/interp_{args.target_features.split(",")[target_idx]}'
-    os.makedirs(out_dir, exist_ok=True)
+    # out_dir = f'/home/maayanfarkash/proj/prediction_summary/hetro/interp_{args.target_features.split(",")[target_idx]}'
+    dir_name = f'{args.exp_dir}/hetro'
+    os.makedirs(dir_name, exist_ok=True)
 
     for i in samples[:500]:
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
-        fig_path = f'{out_dir}/interp/{i:04d}_{name}_{args.target_features.split(",")[target_idx]}.pdf'  # unique per sample
-        analysis_path = f'{out_dir}/analysis_data/{name}_{args.target_features.split(',')[target_idx]}.pt'
+        fig_path = f'{dir_name}/figures/{args.target_features.split(",")[target_idx]}-{name}.pdf'
+        csv_path = f'{dir_name}/analysis/{args.target_features.split(",")[target_idx]}-{name}.csv'
 
         if os.path.isfile(fig_path):
             print(i, "fig exists -> skip")
             continue
 
-        if os.path.isfile(analysis_path):
+        if os.path.isfile(csv_path):
             print(i, "analysis data exists -> skip")
             continue
 
@@ -75,7 +72,7 @@ def interpretation(model, dataloader, args, target_idx):
         model.zero_grad(set_to_none=True)
         pred = model(xh, node_mask, edge_mask_flat, adj_full)
 
-        y = y.cpu() * dataloader.dataset.std + dataloader.dataset.mean
+        y_cpu = y.cpu() * dataloader.dataset.std + dataloader.dataset.mean
         pred_cpu = pred.detach().cpu() * dataloader.dataset.std + dataloader.dataset.mean
         # backprop a scalar
         pred[0, target_idx].backward()
@@ -84,23 +81,16 @@ def interpretation(model, dataloader, args, target_idx):
         final_conv_grads = model.final_conv_grads
         grad_ram_weights = grad_ram(final_conv_acts, final_conv_grads, normalize=False)
 
+        # -------- Save CSV --------
+        save_molecule_node_csv(csv_path, x_full, node_features_full, grad_ram_weights, node_mask, adj_full, args.max_nodes)
+
+        # -------- Save Figure --------
         fig = plot_mol_gradram_from_tensors(
             x_full, node_mask, mol, edges, grad_ram_weights,
-            value=y[0, target_idx].item(),
+            value=y_cpu[0, target_idx].item(),
             target_features=args.target_features.split(",")[target_idx],
             max_nodes=args.max_nodes
         )
-
-        torch.save({
-            "molecule_name": name,
-            "x_full": x_full.squeeze(0).cpu(),
-            "node_mask": node_mask.squeeze().cpu(),
-            "node_features_full": node_features_full.squeeze(0).cpu(),
-            "adj_full": adj_full.squeeze(0).cpu(),
-            "grad_ram_weights": grad_ram_weights.cpu(),
-            "target_value": y[0, target_idx].item(),
-            "prediction": pred_cpu[0, target_idx].item()
-        }, analysis_path)
 
         fig.savefig(fig_path, bbox_inches="tight")
         plt.close(fig)
