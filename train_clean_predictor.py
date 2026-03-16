@@ -147,6 +147,7 @@ def val_epoch_clean(
             node_mask = node_mask.to(args.device).unsqueeze(2)
             edge_mask = edge_mask.to(args.device)
             h = node_features.to(args.device)
+            adj_full = adj_full.to(args.device)
 
             x = remove_mean_with_mask(x, node_mask)
             #check_mask_correct([x, h], node_mask)
@@ -192,12 +193,14 @@ def get_cond_predictor_model(args, dataset: AromaticDataset):
         attention=args.attention,
         coords_range=args.coords_range,
     )
-
     if args.dp:  # and torch.cuda.device_count() > 1:
         cond_predictor = MyDataParallel(cond_predictor)
     if args.restore is not None:
-        model_state_dict = torch.load("/home/maayanfarkash/proj/prediction_summary/hetro/model_clean.pt", map_location=args.device)
-        cond_predictor.load_state_dict(model_state_dict)
+        checkpoint = torch.load(
+            "/home/maayanfarkash/proj/prediction_summary/hetro/checkpoint_best.pt",
+            map_location=args.device
+        )
+        cond_predictor.load_state_dict(checkpoint["model_state_dict"])
     return cond_predictor
 
 
@@ -208,14 +211,31 @@ def main(pred_args, device):
     # ---------------------------
     train_loader, val_loader, test_loader = create_data_loaders(pred_args)
 
+    print("train_loader.num_workers =", train_loader.num_workers)
+    print("val_loader.num_workers =", val_loader.num_workers)
+    print("test_loader.num_workers =", test_loader.num_workers)
+
+    print("Checking first 20 samples...")
+    for i in range(min(20, len(train_loader.dataset))):
+        print(f"sample {i}")
+        sample = train_loader.dataset[i]
+
+    print("Checking first 5 batches...")
+    for i, batch in enumerate(train_loader):
+        print(f"batch {i}")
+        if i >= 4:
+            break
+
+
     # ---------------------------
     # Predictor model
     # ---------------------------
     cond_predictor = get_cond_predictor_model(pred_args, train_loader.dataset)
-    cond_predictor.to(device)
+    cond_predictor = cond_predictor.to(device)
 
-    if pred_args.dp and torch.cuda.device_count() > 1:
-        cond_predictor = torch.nn.DataParallel(cond_predictor)
+##Maayan change
+    # if pred_args.dp and torch.cuda.device_count() > 1:
+    #     cond_predictor = torch.nn.DataParallel(cond_predictor)
 
     # ---------------------------
     # Optimizer
@@ -226,6 +246,25 @@ def main(pred_args, device):
         amsgrad=True, 
         weight_decay=1e-12,
     )
+
+    start_epoch = 0
+    best_val_mae = 1e9
+    best_epoch = 0
+
+    last_checkpoint_path = os.path.join(pred_args.exp_dir, "checkpoint_last.pt")
+
+    if os.path.isfile(last_checkpoint_path):
+        print(f"Loading checkpoint from {last_checkpoint_path}")
+        checkpoint = torch.load(last_checkpoint_path, map_location=device)
+
+        cond_predictor.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_mae = checkpoint.get("best_val_mae", 1e9)
+        best_epoch = checkpoint.get("best_epoch", 0)
+
+        print(f"Resuming training from epoch {start_epoch}")
 
     # ---------------------------
     # Logging & experiment dir
@@ -247,11 +286,9 @@ def main(pred_args, device):
     # ---------------------------
     # Training loop
     # ---------------------------
-    best_val_mae = 1e9
-    best_epoch = 0
 
     print("Begin training")
-    for epoch in range(pred_args.num_epochs):
+    for epoch in range(start_epoch, pred_args.num_epochs):
         train_epoch_clean(
             epoch,
             cond_predictor,
@@ -269,14 +306,33 @@ def main(pred_args, device):
             writer,
         )
 
+
         if val_mae < best_val_mae:
             best_val_mae = val_mae
             best_epoch = epoch
             torch.save(
-                cond_predictor.state_dict(),
-                os.path.join(pred_args.exp_dir, "model_clean.pt"),
+                {
+                    "epoch": epoch,
+                    "model_state_dict": cond_predictor.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "best_val_mae": best_val_mae,
+                    "best_epoch": best_epoch,
+                },
+                os.path.join(pred_args.exp_dir, "checkpoint_best.pt"),
             )
             print(f"Saved new best model at epoch {epoch} with MAE={val_mae:.4f}")
+
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": cond_predictor.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "best_val_mae": best_val_mae,
+                "best_epoch": best_epoch,
+            },
+            os.path.join(pred_args.exp_dir, "checkpoint_last.pt"),
+        )
+
 
     print(f"Best val MAE: {best_val_mae:.4f} at epoch {best_epoch}")
 
@@ -284,13 +340,18 @@ def main(pred_args, device):
     # Final test evaluation
     # ---------------------------
     print("Testing best model...")
+    best_ckpt_path = os.path.join(pred_args.exp_dir, "checkpoint_best.pt")
+    if not os.path.isfile(best_ckpt_path):
+        raise FileNotFoundError(f"Missing best checkpoint: {best_ckpt_path}")
     # reload best weights
-    state = torch.load(
-        os.path.join(pred_args.exp_dir, "model_clean.pt"),
+    best_checkpoint = torch.load(
+        os.path.join(pred_args.exp_dir, "checkpoint_best.pt"),
         map_location=device,
     )
-    cond_predictor.load_state_dict(state)
-    cond_predictor.to(device)
+    cond_predictor.load_state_dict(best_checkpoint["model_state_dict"])
+    cond_predictor = cond_predictor.to(device)
+
+
     test_mae = val_epoch_clean(
         "test",
         best_epoch,
