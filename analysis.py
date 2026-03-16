@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.stats import gaussian_kde
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -68,14 +70,25 @@ def filter_rings(
 # ---------------------- HISTOGRAM ---------------------------
 def plot_iv_histogram(df, save_path, bins=50, title=None):
     """
-    Plot histogram of IV values.
+    Plot smooth IV distribution using KDE with filled area.
     """
+
     iv_values = df["IV"].values
 
-    plt.figure()
-    plt.hist(iv_values, bins=bins)
+    if len(iv_values) < 2:
+        print("Not enough data for KDE.")
+        return
+
+    kde = gaussian_kde(iv_values)
+
+    x = np.linspace(iv_values.min(), iv_values.max(), 500)
+    y = kde(x)
+
+    plt.figure(dpi=300)
+    plt.plot(x, y, color="blue")
+    plt.fill_between(x, y, color="blue", alpha=0.5)
     plt.xlabel("IV value")
-    plt.ylabel("Count")
+    plt.ylabel("Density")
 
     if title is not None:
         plt.title(title)
@@ -83,7 +96,6 @@ def plot_iv_histogram(df, save_path, bins=50, title=None):
     plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
-
 
 # ---------------------- ANALYSIS ----------------------------
 def analyze(args, df):

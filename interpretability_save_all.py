@@ -33,6 +33,8 @@ def interpretation(model, dataloader, args, target_idx):
     # out_dir = f'/home/maayanfarkash/proj/prediction_summary/hetro/interp_{args.target_features.split(",")[target_idx]}'
     dir_name = f'{args.exp_dir}/hetro'
     os.makedirs(dir_name, exist_ok=True)
+    os.makedirs(f"{dir_name}/figures", exist_ok=True)
+    os.makedirs(f"{dir_name}/analysis", exist_ok=True)
 
     for i in samples[:500]:
         df_row = dataloader.dataset.df.iloc[i]
