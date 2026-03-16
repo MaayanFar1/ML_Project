@@ -116,6 +116,7 @@ def plot_mol_gradram_from_tensors(
         mask = node_mask[0,:,0].detach().cpu().numpy().astype(bool)
         x = x[mask]
         grad_ram_weights = grad_ram_weights[mask]
+        orig_indices = np.where(mask)[0] # keep original node indices
 
     # align
     x3d, Vt, xmean = align_to_xy_plane(x)
@@ -140,9 +141,9 @@ def plot_mol_gradram_from_tensors(
     ax.scatter( x[:, 0], x[:, 1], s=size, c=w_scaled, alpha=0.5, cmap='coolwarm', vmin=-1, vmax=1)
 
     for i in range(len(grad_ram_weights)):
-        #ax.annotate(f"{grad_ram_weights[i]:.3f}", (x[i, 0], x[i, 1]), ha='center', va='center')
+        k = orig_indices[i]  # original node index
         # real node
-        if i < max_nodes:
+        if k < max_nodes:
             ax.text(
                 x[i, 0],
                 x[i, 1],
