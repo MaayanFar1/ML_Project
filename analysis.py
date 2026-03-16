@@ -67,13 +67,15 @@ def filter_rings(
     return filtered
 
 
-# ---------------------- HISTOGRAM ---------------------------
-def plot_iv_histogram(df, save_path, bins=50, title=None):
+# ---------------------- PLOTTING ---------------------------
+def plot_iv_histogram(df, save_path, bins=50, label=None):
     """
     Plot smooth IV distribution using KDE with filled area.
     """
 
     iv_values = df["IV"].values
+    mean = np.mean(iv_values)
+    std = np.std(iv_values)
 
     if len(iv_values) < 2:
         print("Not enough data for KDE.")
@@ -81,18 +83,17 @@ def plot_iv_histogram(df, save_path, bins=50, title=None):
 
     kde = gaussian_kde(iv_values)
 
-    x = np.linspace(iv_values.min(), iv_values.max(), 500)
+    x_limit = np.max(np.abs(iv_values.min()), np.abs(iv_values.max()))
+    x = np.linspace((-1)*x_limit, x_limit, 500)
     y = kde(x)
 
     plt.figure(dpi=300)
-    plt.plot(x, y, color="blue")
+    final_label = f"{label} ({mean:.3f} ± {std:.3f})" if label else f"μ={mean:.3f} ± {std:.3f}"
+    plt.plot(x, y, color="blue", label=final_label)
     plt.fill_between(x, y, color="blue", alpha=0.5)
     plt.xlabel("IV value")
-    plt.ylabel("Density")
-
-    if title is not None:
-        plt.title(title)
-
+    #plt.ylabel("Density")
+    plt.legend()
     plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
@@ -124,12 +125,14 @@ def analyze(args, df):
     if args.orientation_only:
         title_parts.append("orientation_only")
 
-    title = ", ".join(title_parts) if title_parts else "All rings"
+    label = ", ".join(title_parts) if title_parts else "All rings"
 
-    save_path = os.path.join(args.out_dir, "iv_histogram.png") #make sure path is right
+    safe_title = label.replace(" ", "_").replace(",", "").replace("=", "")
+    save_path = os.path.join(args.out_dir, f"iv_histogram_{safe_title}.png")
+    #save_path = os.path.join(args.out_dir, "iv_histogram.png") #make sure path is right
 
     print("Plotting histogram...")
-    plot_iv_histogram(df_filtered, save_path, bins=args.bins, title=title)
+    plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
 
     print(f"Histogram saved to {save_path}")
 
@@ -146,7 +149,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--csv_dir", type=str, required=True)
+    parser.add_argument("--csv_dir", type=str, default="/home/maayanfarkash/proj/prediction_summary/hetro/hetro/analysis")
     parser.add_argument("--out_dir", type=str, default="analysis_output")
 
     parser.add_argument("--max_nodes", type=int, default=15)
