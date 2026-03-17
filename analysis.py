@@ -83,7 +83,7 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
 
     kde = gaussian_kde(iv_values)
 
-    x_limit = np.max(np.abs(iv_values.min()), np.abs(iv_values.max()))
+    x_limit = max(np.abs(iv_values.min()), np.abs(iv_values.max()))
     x = np.linspace((-1)*x_limit, x_limit, 500)
     y = kde(x)
 
@@ -92,6 +92,7 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
     plt.plot(x, y, color="blue", label=final_label)
     plt.fill_between(x, y, color="blue", alpha=0.5)
     plt.xlabel("IV value")
+    plt.ylim(bottom=0)
     #plt.ylabel("Density")
     plt.legend()
     plt.tight_layout()
