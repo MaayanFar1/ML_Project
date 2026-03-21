@@ -11,6 +11,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
+from data.ring import RINGS_DICT
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -36,30 +37,82 @@ def load_all_csvs(csv_dir):
 
 
 # ---------------------- FILTERING ---------------------------
+# def filter_rings(
+#     df,
+#     max_nodes,
+#     ring_type=None,
+#     node_type = None,
+#     degree=None,
+#     orientation_only=False,
+# ):
+#     """
+#     Filter rings based on:
+#         - ring_type (exact match)
+#         - degree (int or list of ints)
+#         - orientation_only (node_idx >= max_nodes)
+#     """
+
+#     filtered = df.copy()
+
+#     if node_type is not None:
+#         filtered = filtered[filtered["type"] == node_type]
+
+#     if ring_type is not None:
+#         filtered = filtered[filtered["Ring_type"] == ring_type]
+
+#     if degree is not None:
+#         if isinstance(degree, list):
+#             filtered = filtered[filtered["degree"].isin(degree)]
+#         else:
+#             filtered = filtered[filtered["degree"] == degree]
+
+#     if orientation_only:
+#         filtered = filtered[filtered["node_idx"] >= max_nodes]
+
+#     return filtered
+
 def filter_rings(
     df,
     max_nodes,
     ring_type=None,
+    node_type=None,
     degree=None,
     orientation_only=False,
+    num_rings=None,
 ):
     """
     Filter rings based on:
         - ring_type (exact match)
         - degree (int or list of ints)
         - orientation_only (node_idx >= max_nodes)
+        - num_rings (number of real rings per molecule, excluding orientation nodes)
     """
 
     filtered = df.copy()
 
+    if node_type is not None:
+        filtered = filtered[filtered["type"] == node_type]
+
     if ring_type is not None:
-        filtered = filtered[filtered["type"] == ring_type]
+        filtered = filtered[filtered["Ring_type"] == ring_type]
 
     if degree is not None:
         if isinstance(degree, list):
             filtered = filtered[filtered["degree"].isin(degree)]
         else:
             filtered = filtered[filtered["degree"] == degree]
+
+    # Filter by number of real rings per molecule
+    if num_rings is not None:
+        # Count only real ring nodes (exclude orientation nodes)
+        real_rings = filtered[filtered["node_idx"] < max_nodes]
+
+        # Count rings per molecule
+        ring_counts = real_rings.groupby("source_file")["node_idx"].count()
+
+        # Keep molecules with the requested number of rings
+        valid_molecules = ring_counts[ring_counts == num_rings].index
+        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
     if orientation_only:
         filtered = filtered[filtered["node_idx"] >= max_nodes]
@@ -106,8 +159,10 @@ def analyze(args, df):
         df,
         max_nodes=args.max_nodes,
         ring_type=args.ring_type,
+        node_type = args.node_type,
         degree=args.degree,
         orientation_only=args.orientation_only,
+        num_rings = args.num_rings,
     )
 
     print(f"Rings after filtering: {len(df_filtered)}")
@@ -119,12 +174,14 @@ def analyze(args, df):
     os.makedirs(args.out_dir, exist_ok=True)
 
     title_parts = []
-    if args.ring_type:
-        title_parts.append(f"type={args.ring_type}")
+    if args.node_type:
+        title_parts.append(f"type={args.node_type}")
     if args.degree:
         title_parts.append(f"degree={args.degree}")
     if args.orientation_only:
         title_parts.append("orientation_only")
+    if args.ring_type :
+        title_parts.append(f"ring_type={args.ring_type}")
 
     label = ", ".join(title_parts) if title_parts else "All rings"
 
@@ -133,9 +190,85 @@ def analyze(args, df):
     #save_path = os.path.join(args.out_dir, "iv_histogram.png") #make sure path is right
 
     print("Plotting histogram...")
-    plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
+    #plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
+    plot_iv_histogram_by_ring_type(df_filtered , save_path)
 
     print(f"Histogram saved to {save_path}")
+
+
+def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
+    """
+    Plot IV KDE curves for all ring types on the same figure.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame after general filtering.
+    save_path : str
+        Output path for the figure.
+    max_ring_types : int or None
+        Optional limit on number of ring types to plot.
+    """
+
+    if "Ring_type" not in df.columns:
+        print("Column 'Ring_type' not found.")
+        return
+
+    df = df.copy()
+    df = df.dropna(subset=["IV", "Ring_type"])
+
+    ring_types = RINGS_DICT
+
+    if max_ring_types is not None:
+        ring_types = ring_types[:max_ring_types]
+
+    if len(ring_types) == 0:
+        print("No ring types found.")
+        return
+
+    # Find a common x-axis range for all curves
+    iv_values_all = df["IV"].values
+    x_limit = max(np.abs(iv_values_all.min()), np.abs(iv_values_all.max()))
+    x = np.linspace(-x_limit, x_limit, 500)
+
+    plt.figure(dpi=300, figsize=(8, 6))
+
+    plotted_any = False
+
+    for ring_type in ring_types:
+        df_ring = df[df["Ring_type"] == ring_type]
+        iv_values = df_ring["IV"].values
+
+        if len(iv_values) < 2:
+            print(f"Skipping ring_type={ring_type}: not enough data for KDE.")
+            continue
+
+        mean = np.mean(iv_values)
+        std = np.std(iv_values)
+
+        try:
+            kde = gaussian_kde(iv_values)
+            y = kde(x)
+        except Exception as e:
+            print(f"Skipping ring_type={ring_type}: KDE failed ({e})")
+            continue
+
+        label = f"{ring_type} (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
+        plt.plot(x, y, label=label)
+        plotted_any = True
+
+    if not plotted_any:
+        print("No valid ring types were plotted.")
+        plt.close()
+        return
+
+    plt.xlabel("IV value")
+    plt.ylabel("Density")
+    plt.ylim(bottom=0)
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
 
 
 def main(args):
@@ -156,6 +289,10 @@ if __name__ == "__main__":
     parser.add_argument("--max_nodes", type=int, default=15)
 
     parser.add_argument("--ring_type", type=str, default=None)
+    parser.add_argument("--node_type", type=str, default=None)
+    parser.add_argument("--num_rings", type=int, default=None)
+    
+
     parser.add_argument("--degree", type=int, nargs="+", default=None)
     parser.add_argument("--orientation_only", action="store_true")
 
