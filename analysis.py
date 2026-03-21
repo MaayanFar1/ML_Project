@@ -71,6 +71,18 @@ def filter_rings(
         valid_molecules = ring_counts[ring_counts == num_rings].index
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
+    # Filter by number of real rings per molecule
+    if num_rings is not None:
+        # Count only real ring nodes (exclude orientation nodes)
+        real_rings = filtered[filtered["node_idx"] < max_nodes]
+
+        # Count rings per molecule
+        ring_counts = real_rings.groupby("source_file")["node_idx"].count()
+
+        # Keep molecules with the requested number of rings
+        valid_molecules = ring_counts[ring_counts == num_rings].index
+        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
+
     if orientation_only:
         filtered = filtered[filtered["node_idx"] >= max_nodes]
 
@@ -225,6 +237,81 @@ def analyze(
     #plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
     plot_iv_histogram_by_ring_type(df_filtered , save_path)
     print(f"Histogram saved to {save_path}")
+
+
+def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
+    """
+    Plot IV KDE curves for all ring types on the same figure.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame after general filtering.
+    save_path : str
+        Output path for the figure.
+    max_ring_types : int or None
+        Optional limit on number of ring types to plot.
+    """
+
+    if "Ring_type" not in df.columns:
+        print("Column 'Ring_type' not found.")
+        return
+
+    df = df.copy()
+    df = df.dropna(subset=["IV", "Ring_type"])
+
+    ring_types = RINGS_DICT
+
+    if max_ring_types is not None:
+        ring_types = ring_types[:max_ring_types]
+
+    if len(ring_types) == 0:
+        print("No ring types found.")
+        return
+
+    # Find a common x-axis range for all curves
+    iv_values_all = df["IV"].values
+    x_limit = max(np.abs(iv_values_all.min()), np.abs(iv_values_all.max()))
+    x = np.linspace(-x_limit, x_limit, 500)
+
+    plt.figure(dpi=300, figsize=(8, 6))
+
+    plotted_any = False
+
+    for ring_type in ring_types:
+        df_ring = df[df["Ring_type"] == ring_type]
+        iv_values = df_ring["IV"].values
+
+        if len(iv_values) < 2:
+            print(f"Skipping ring_type={ring_type}: not enough data for KDE.")
+            continue
+
+        mean = np.mean(iv_values)
+        std = np.std(iv_values)
+
+        try:
+            kde = gaussian_kde(iv_values)
+            y = kde(x)
+        except Exception as e:
+            print(f"Skipping ring_type={ring_type}: KDE failed ({e})")
+            continue
+
+        label = f"{ring_type} (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
+        plt.plot(x, y, label=label)
+        plotted_any = True
+
+    if not plotted_any:
+        print("No valid ring types were plotted.")
+        plt.close()
+        return
+
+    plt.xlabel("IV value")
+    plt.ylabel("Density")
+    plt.ylim(bottom=0)
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
 
 
 def main(args):
