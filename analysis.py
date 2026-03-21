@@ -15,7 +15,7 @@ from data.ring import RINGS_DICT
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
+ATOMS_DICT = { "H", "C", "B", "N", "O", "S"}
 # ---------------------- IO FUNCTIONS ------------------------
 def load_all_csvs(csv_dir):
     """
@@ -71,6 +71,18 @@ def filter_rings(
         valid_molecules = ring_counts[ring_counts == num_rings].index
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
+    # Filter by number of real rings per molecule
+    if num_rings is not None:
+        # Count only real ring nodes (exclude orientation nodes)
+        real_rings = filtered[filtered["node_idx"] < max_nodes]
+
+        # Count rings per molecule
+        ring_counts = real_rings.groupby("source_file")["node_idx"].count()
+
+        # Keep molecules with the requested number of rings
+        valid_molecules = ring_counts[ring_counts == num_rings].index
+        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
+
     if orientation_only:
         filtered = filtered[filtered["node_idx"] >= max_nodes]
 
@@ -110,7 +122,7 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
     plt.close()
 
 
-def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
+def plot_iv_histogram_by_ring_type(df, save_path, orientation_only):
     """
     Plot IV KDE curves for all ring types on the same figure.
     """
@@ -119,16 +131,16 @@ def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
         print("Column 'Ring_type' not found.")
         return
 
-    df = df.copy()
+    #df = df.copy()
     df = df.dropna(subset=["IV", "Ring_type"])
 
-    ring_types = RINGS_DICT
+    if orientation_only:
+        node_types = ATOMS_DICT
+    else:
+        node_types = RINGS_DICT
 
-    if max_ring_types is not None:
-        ring_types = ring_types[:max_ring_types]
-
-    if len(ring_types) == 0:
-        print("No ring types found.")
+    if len(node_types) == 0:
+        print("No node types found.")
         return
 
     # Find a common x-axis range for all curves
@@ -140,12 +152,12 @@ def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
 
     plotted_any = False
 
-    for ring_type in ring_types:
-        df_ring = df[df["Ring_type"] == ring_type]
+    for node_type in node_types:
+        df_ring = df[df["type"] == node_type]
         iv_values = df_ring["IV"].values
 
         if len(iv_values) < 2:
-            print(f"Skipping ring_type={ring_type}: not enough data for KDE.")
+            print(f"Skipping node_type={node_type}: not enough data for KDE.")
             continue
 
         mean = np.mean(iv_values)
@@ -155,10 +167,10 @@ def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
             kde = gaussian_kde(iv_values)
             y = kde(x)
         except Exception as e:
-            print(f"Skipping ring_type={ring_type}: KDE failed ({e})")
+            print(f"Skipping ring_type={node_type}: KDE failed ({e})")
             continue
 
-        label = f"{ring_type} (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
+        label = f"{node_type} (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
         plt.plot(x, y, label=label)
         plotted_any = True
 
@@ -174,8 +186,6 @@ def plot_iv_histogram_by_ring_type(df, save_path, max_ring_types=None):
     plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
-
-
 # ---------------------- ANALYSIS ----------------------------
 def analyze(
     df,
@@ -223,7 +233,7 @@ def analyze(
 
     print("Plotting histogram...")
     #plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
-    plot_iv_histogram_by_ring_type(df_filtered , save_path)
+    plot_iv_histogram_by_ring_type(df_filtered, save_path, orientation_only)
     print(f"Histogram saved to {save_path}")
 
 
