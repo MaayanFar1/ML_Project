@@ -1,6 +1,7 @@
 import json
 import os
 import matplotlib
+import random
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -19,10 +20,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import numpy as np
 import torch
+import re
 
-
-# def to_np(x):
-#     return x.cpu().detach().numpy()
+def make_safe_filename(s):
+    return re.sub(r'[^\w\-.]', '_', s)
 
 
 def interpretation(model, dataloader, args, target_idx):
@@ -36,12 +37,18 @@ def interpretation(model, dataloader, args, target_idx):
     os.makedirs(f"{dir_name}/figures", exist_ok=True)
     os.makedirs(f"{dir_name}/analysis", exist_ok=True)
 
-    for i in samples[:500]:
+    samples = list(samples)
+    subset = random.sample(samples, 10000)
+    for i in subset:
         df_row = dataloader.dataset.df.iloc[i]
         mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
 
-        fig_path = f'{dir_name}/figures/{args.target_features.split(",")[target_idx]}-{name}.pdf'
-        csv_path = f'{dir_name}/analysis/{args.target_features.split(",")[target_idx]}-{name}.csv'
+        target_name = args.target_features.split(",")[target_idx]
+        safe_target_name = make_safe_filename(target_name)
+        safe_name = make_safe_filename(name)
+
+        fig_path = f'{dir_name}/figures/{safe_target_name}-{safe_name}.pdf'
+        csv_path = f'{dir_name}/analysis/{safe_target_name}-{safe_name}.csv'
 
         if os.path.isfile(fig_path):
             print(i, "fig exists -> skip")
@@ -93,7 +100,7 @@ def interpretation(model, dataloader, args, target_idx):
             target_features=args.target_features.split(",")[target_idx],
             max_nodes=args.max_nodes
         )
-
+        os.makedirs(os.path.dirname(fig_path), exist_ok=True)
         fig.savefig(fig_path, bbox_inches="tight")
         plt.close(fig)
 
@@ -110,7 +117,7 @@ def main(args):
 
     # Run training
     print('Begin evaluation')
-    interpretation(model, train_loader, args, target_idx=2)
+    interpretation(model, train_loader, args, target_idx=0)
 
 if __name__ == '__main__':
     args = Args().parse_args()
