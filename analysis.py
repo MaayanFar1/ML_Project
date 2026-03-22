@@ -56,10 +56,11 @@ def filter_rings(
     if ring_type is not None:
         filtered = filtered[filtered["Ring_type"] == ring_type]
 
-    if isinstance(degree, list):
-        filtered = filtered[filtered["degree"].isin(degree)]
-    else:
-        filtered = filtered[filtered["degree"] == degree]
+    if degree is not None:
+        if isinstance(degree, list):
+            filtered = filtered[filtered["degree"].isin(degree)]
+        else:
+            filtered = filtered[filtered["degree"] == degree]
 
     if num_rings is not None:
         # Count rings from the ORIGINAL df, not filtered
@@ -97,7 +98,7 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
 
     x_limit = max(np.abs(iv_values.min()), np.abs(iv_values.max()))
     x = np.linspace((-1)*x_limit, x_limit, 500)
-    y = kde(x)
+    y = kde(x) * len(iv_values)
 
     plt.figure(dpi=300)
     final_label = f"{label} ({mean:.3f} ± {std:.3f})" if label else f"μ={mean:.3f} ± {std:.3f}"
@@ -173,7 +174,7 @@ def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_nod
 
         try:
             kde = gaussian_kde(iv_values)
-            y = kde(x)
+            y = kde(x) * len(iv_values)
         except Exception as e:
             print(f"Skipping ring_type={node_type}: KDE failed ({e})")
             continue
@@ -182,6 +183,40 @@ def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_nod
 
         plt.plot(x, y, label=label)
         plotted_any = True
+    # 🔥 Add aggregated node_type curves
+    if split_by_node_and_ring and orientation_only:
+        print("Adding aggregated node_type curves...")
+
+        for node_type in ATOMS_DICT:
+            group = df[df["type"] == node_type]
+            iv_values = group["IV"].values
+
+            if len(iv_values) < 2:
+                print(f"Skipping node_type={node_type}: not enough data for KDE.")
+                continue
+
+            mean = np.mean(iv_values)
+            std = np.std(iv_values)
+
+            try:
+                kde = gaussian_kde(iv_values)
+                y = kde(x) * len(iv_values)
+            except Exception as e:
+                print(f"Skipping node_type={node_type}: KDE failed ({e})")
+                continue
+
+            # 🔥 distinguish visually
+            label = f"{node_type} TOTAL (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
+
+            plt.plot(
+            x,
+            y,
+            linestyle="--", # 👈 key difference
+            linewidth=2,
+            label=label,
+            )
+
+            plotted_any = True
 
     if not plotted_any:
         print("No valid groups plotted.")
@@ -189,7 +224,7 @@ def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_nod
         return
 
     plt.xlabel("IV value")
-    plt.ylabel("Density")
+    # plt.ylabel("Density")
     plt.ylim(bottom=0)
 
     # Adjust legend size if many curves
@@ -232,14 +267,20 @@ def analyze(
     os.makedirs(out_dir, exist_ok=True)
 
     title_parts = []
+    if num_rings is not None:
+        title_parts.append(f"num_rings={num_rings}")
+    if orientation_only:
+        title_parts.append("orientation_only")
+        if split_by_node_and_ring:
+            title_parts.append(f"sepereted")
     if node_type:
         title_parts.append(f"type={node_type}")
     if degree:
         title_parts.append(f"degree={degree}")
-    if orientation_only:
-        title_parts.append("orientation_only")
     if ring_type :
         title_parts.append(f"ring_type={ring_type}")
+
+
 
     label = ", ".join(title_parts) if title_parts else "All rings"
 
@@ -270,6 +311,8 @@ def main(args):
         dict(num_rings=9, degree=[3]),
         dict(orientation_only=True),
         dict(orientation_only=True, num_rings=9, degree=[1]),
+        dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True),
+        dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True),
         # dict(orientation_only=True, num_rings=9, degree=[2]),
         # dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
     ]

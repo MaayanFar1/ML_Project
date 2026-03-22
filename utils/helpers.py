@@ -338,6 +338,7 @@ def save_molecule_node_csv(csv_path: str, x_full, node_features_full, gradramwei
             "degree": 1,  # orientation nodes connect only to their ring
             "IV": float(w[i]),
             "Ring_indx": int(i - max_nodes),
+            "Ring_type" : type_name,
         })
 
     df = pd.DataFrame(rows)
