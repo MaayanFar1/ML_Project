@@ -56,32 +56,22 @@ def filter_rings(
     if ring_type is not None:
         filtered = filtered[filtered["Ring_type"] == ring_type]
 
-    if degree is not None:
+    if isinstance(degree, list):
+        filtered = filtered[filtered["degree"].isin(degree)]
+    else:
         filtered = filtered[filtered["degree"] == degree]
 
-    # Filter by number of real rings per molecule
     if num_rings is not None:
-        # Count only real ring nodes (exclude orientation nodes)
-        real_rings = filtered[filtered["node_idx"] < max_nodes]
+        # Count rings from the ORIGINAL df, not filtered
+        real_rings_all = df[df["node_idx"] < max_nodes]
 
-        # Count rings per molecule
-        ring_counts = real_rings.groupby("source_file")["node_idx"].count()
+        ring_counts = real_rings_all.groupby("source_file")["node_idx"].count()
 
-        # Keep molecules with the requested number of rings
         valid_molecules = ring_counts[ring_counts == num_rings].index
+
+        # Now filter the already-filtered dataframe
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
-    # Filter by number of real rings per molecule
-    if num_rings is not None:
-        # Count only real ring nodes (exclude orientation nodes)
-        real_rings = filtered[filtered["node_idx"] < max_nodes]
-
-        # Count rings per molecule
-        ring_counts = real_rings.groupby("source_file")["node_idx"].count()
-
-        # Keep molecules with the requested number of rings
-        valid_molecules = ring_counts[ring_counts == num_rings].index
-        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
     if orientation_only:
         filtered = filtered[filtered["node_idx"] >= max_nodes]
@@ -127,12 +117,12 @@ def plot_iv_histogram_by_ring_type(df, save_path, orientation_only):
     Plot IV KDE curves for all ring types on the same figure.
     """
 
-    if "Ring_type" not in df.columns:
-        print("Column 'Ring_type' not found.")
+    if "type" not in df.columns:
+        print("Column 'type' not found.")
         return
 
     #df = df.copy()
-    df = df.dropna(subset=["IV", "Ring_type"])
+    df = df.dropna(subset=["IV", "type"])
 
     if orientation_only:
         node_types = ATOMS_DICT
@@ -216,13 +206,13 @@ def analyze(
     os.makedirs(out_dir, exist_ok=True)
 
     title_parts = []
-    if args.node_type:
+    if node_type:
         title_parts.append(f"type={node_type}")
-    if args.degree:
+    if degree:
         title_parts.append(f"degree={degree}")
-    if args.orientation_only:
+    if orientation_only:
         title_parts.append("orientation_only")
-    if args.ring_type :
+    if ring_type :
         title_parts.append(f"ring_type={ring_type}")
 
     label = ", ".join(title_parts) if title_parts else "All rings"
@@ -248,13 +238,14 @@ def main(args):
     # ----------------------------------------
     configs = [
         dict(),
+        dict(num_rings=9),
         dict(num_rings=9, degree=[1]),
         dict(num_rings=9, degree=[2]),
         dict(num_rings=9, degree=[3]),
         dict(orientation_only=True),
         dict(orientation_only=True, num_rings=9, degree=[1]),
-        dict(orientation_only=True, num_rings=9, degree=[2]),
-        dict(orientation_only=True, num_rings=9, degree=[3]),
+        # dict(orientation_only=True, num_rings=9, degree=[2]),
+        # dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
     ]
 
     # ----------------------------------------
