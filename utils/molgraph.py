@@ -6,33 +6,6 @@ from utils.const import __COV_RADII__, __ATOM_LIST__
 import torch
 
 
-# def get_molgraph(
-#     _molrepr: Mol = None, covalency_factor: float = 1.3, skip_hydrogen=False
-# ) -> nx.Graph:
-#     """
-#     get_molgraph(_molrepr: Mol, covalency_factor: float) -> mol graph (nx.graph)
-
-#     Generate a graph for a molecule.
-
-#     in:
-#     _molrepr: A molecule, represented by a list of Atoms with their xyz coordinates in Angstroms.
-#     covalency_factor: A bond is identified if the sum of covelent radii times the covalency factor is larger than the distance between atoms.
-
-#     out:
-#     graph: generated graph of the molecule.
-
-#     """
-
-#     atom_connectivity = get_connectivity_matrix(
-#         _molrepr.atoms, covalency_factor, skip_hydrogen=skip_hydrogen
-#     )  # build connectivity matrix
-#     edges = get_edges(atom_connectivity)  # edges = bonds
-#     graph = nx.Graph(
-#         edges
-#     )  # generate a mathematical Graph representation of the molecule using networkx
-
-#     return graph
-
 
 def get_connectivity_matrix(
     _atoms: Atom, covalency_factor: float = 1.3, skip_hydrogen=False

@@ -231,24 +231,25 @@ def load_xyz(_path: str) -> Mol:
 
 
 def from_rdkit(file_path):
-    mol = Chem.MolFromMolFile(file_path)
+    rd_mol = Chem.MolFromMolFile(file_path)
+
     molrepr = []
-    conf = mol.GetConformer()
-    for atom in mol.GetAtoms():
+    conf = rd_mol.GetConformer()
+
+    for atom in rd_mol.GetAtoms():
         idx = atom.GetIdx()
         coords = conf.GetAtomPosition(idx)
-        molrepr.append(
-            [
-                atom.GetSymbol().capitalize(),
-                float(coords.x),
-                float(coords.y),
-                float(coords.z),
-            ]
-        )
-    molrepr = Mol(molrepr)
-    atom_connectivity = Chem.GetAdjacencyMatrix(mol)
-    return molrepr, atom_connectivity
+        molrepr.append([
+            atom.GetSymbol().capitalize(),
+            float(coords.x),
+            float(coords.y),
+            float(coords.z),
+        ])
 
+    molrepr = Mol(molrepr)
+    atom_connectivity = Chem.GetAdjacencyMatrix(rd_mol)
+
+    return molrepr, atom_connectivity, rd_mol   # ← ADD THIS
 
 def str_atom(_atom: int) -> str:
     """
