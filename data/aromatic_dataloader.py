@@ -113,21 +113,29 @@ class AromaticDataset(Dataset):
         return x
 
 
-    def get_mol(self, df_row, skip_hydrogen=False) -> Tuple[Mol, list, Tensor, str]:
+    def get_mol(self, df_row, skip_hydrogen=False):
         name = df_row["molecule"]
+        # print("Calling get_mol for:", name)
+
         file_path = self.xyz_root + "/" + name
+
+        rd_mol = None
+
         if os.path.exists(file_path + ".xyz"):
+            print("enter")
             mol = load_xyz(file_path + ".xyz")
             atom_connectivity = get_connectivity_matrix(
                 mol.atoms, skip_hydrogen=skip_hydrogen
-            )  # build connectivity matrix
-            # edges = bonds
+            )
+
         elif os.path.exists(file_path + ".pkl"):
-            mol, atom_connectivity = from_rdkit(file_path + ".pkl")
+            mol, atom_connectivity, rd_mol = from_rdkit(file_path + ".pkl")
+
         else:
             raise NotImplementedError(file_path)
+
         edges = get_edges(atom_connectivity)
-        return mol, edges, atom_connectivity, name
+        return mol, edges, atom_connectivity, name, rd_mol
 
     # def get_rings(self, df_row):
     #     name = df_row["molecule"]
@@ -153,10 +161,10 @@ class AromaticDataset(Dataset):
         if Path(preprocessed_path).is_file():
             x, adj, node_features, orientation, knots_with_orientation = torch.load(preprocessed_path)
         else:
-            mol, edges, atom_connectivity, _ = self.get_mol(df_row, skip_hydrogen=True)
+            mol, edges, atom_connectivity, _ , rd_mol= self.get_mol(df_row, skip_hydrogen=False)
             # get_figure(mol, edges, showPlot=True, filename='4.png')
             mol_graph = nx.Graph(edges)
-            knots , knots_with_orientation = get_rings(mol.atoms, mol_graph)
+            knots , knots_with_orientation = get_rings(rd_mol ,mol ,mol.atoms, mol_graph)
             adj = get_rings_adj(knots)
             x = torch.tensor([k.get_coord() for k in knots], dtype=DTYPE)
             knot_type = torch.tensor(
@@ -186,7 +194,7 @@ class AromaticDataset(Dataset):
         if Path(preprocessed_path).is_file():
             x, adj, node_features = torch.load(preprocessed_path)
         else:
-            mol, edges, atom_connectivity, _ = self.get_mol(df_row)
+            mol, edges, atom_connectivity, _ , rd_mol = self.get_mol(df_row)
             x = torch.tensor([a.get_coord() for a in mol.atoms], dtype=DTYPE)
 
             atom_element = torch.tensor(

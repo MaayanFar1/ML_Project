@@ -41,7 +41,7 @@ def interpretation(model, dataloader, args, target_idx):
     subset = random.sample(samples, 10000)
     for i in subset:
         df_row = dataloader.dataset.df.iloc[i]
-        mol, edges, atom_connectivity, name = dataloader.dataset.get_mol(df_row)
+        mol, edges, atom_connectivity, name ,__= dataloader.dataset.get_mol(df_row)
 
         target_name = args.target_features.split(",")[target_idx]
         safe_target_name = make_safe_filename(target_name)

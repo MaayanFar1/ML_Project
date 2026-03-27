@@ -17,7 +17,7 @@ def get_ring_type(str):
 
 
 
-def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
+def get_rings(rd_mol ,mol, _atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
     """
     Function that gets the geometric center of each ring of the molecule and initializes the Knot Objects for each monocycle.
 
@@ -30,6 +30,7 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
 
     """
     cycles = nx.minimum_cycle_basis(_molgraph)
+    #print("Unique elements in _atoms:", sorted(set(a.element for a in _atoms)))
     knots = []  # initialize list to return
     knots_with_orientation = []
     i = 0
@@ -49,9 +50,16 @@ def get_rings(_atoms: Sequence[Atom], _molgraph: nx.graph) -> Sequence[Ring]:
         if "Db" in knot_type:
             b_ind = cycle_atoms.index("B")
             b_atom = cycle[b_ind]
-            b_neighbors = [_atoms[n].element for n in nx.neighbors(_molgraph, b_atom)]
-            if "H" in b_neighbors:
+            has_H = False
+
+            if rd_mol:
+                rd_atom = rd_mol.GetAtomWithIdx(b_atom)
+                has_H = rd_atom.GetTotalNumHs() > 0
+                #print("B atom:", rd_atom.GetSymbol(), "has_H:", has_H)
+
+            if has_H:
                 knot_type = "DhDb"
+                # print("there is knot type DhDb")
             else:
                 knot_type = "Db"
 

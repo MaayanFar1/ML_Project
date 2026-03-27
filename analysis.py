@@ -113,19 +113,57 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
     plt.close()
 
 
-def get_grouped_data(df, orientation_only, split_by_node_and_ring):
+# def get_grouped_data(df, orientation_only, split_by_node_and_ring):
+#     """
+#     Returns an iterable of (label, sub_dataframe)
+#     depending on the selected grouping mode.
+#     """
+
+#     # atom and ring seperation
+#     if split_by_node_and_ring and orientation_only:
+#         grouped = df.groupby(["type", "Ring_type"])
+#         for (atom, ring), group in grouped:
+#             yield f"{atom}-{ring}", group, atom
+
+#     # atom / ring seperation
+#     else:
+#         if orientation_only:
+#             node_types = ATOMS_DICT
+#         else:
+#             node_types = RINGS_DICT
+
+#         for node_type in node_types:
+#             group = df[df["type"] == node_type]
+#             yield str(node_type), group, node_type
+
+def get_grouped_data(df, orientation_only, split_by_node_and_ring, split_by_ring_degree):
     """
-    Returns an iterable of (label, sub_dataframe)
+    Returns an iterable of (label, sub_dataframe, node_type)
     depending on the selected grouping mode.
     """
+    if split_by_node_and_ring and split_by_ring_degree and orientation_only:
+        grouped = df.groupby(["type", "Ring_type", "degree"])
+        for (atom, ring, degree), group in grouped:
+            yield f"{atom}-{ring}-deg{degree}", group, atom
 
-    # atom and ring seperation
-    if split_by_node_and_ring and orientation_only:
+    # orientation atoms split by atom type + ring type
+    elif split_by_node_and_ring and orientation_only:
         grouped = df.groupby(["type", "Ring_type"])
         for (atom, ring), group in grouped:
             yield f"{atom}-{ring}", group, atom
 
-    # atom / ring seperation
+    # split real/orientation rings by ring type + degree
+    elif split_by_ring_degree:
+        if orientation_only:
+            grouped = df.groupby(["Ring_type", "degree"])
+            for (ring, degree), group in grouped:
+                yield f"{ring}-deg{degree}", group, ring
+        else:
+            grouped = df.groupby(["type", "degree"])
+            for (ring, degree), group in grouped:
+                yield f"{ring}-deg{degree}", group, ring
+
+    # default grouping
     else:
         if orientation_only:
             node_types = ATOMS_DICT
@@ -137,7 +175,7 @@ def get_grouped_data(df, orientation_only, split_by_node_and_ring):
             yield str(node_type), group, node_type
 
 
-def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_node_and_ring=False):
+def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_node_and_ring=False , split_by_ring_degree=False):
 
     if "type" not in df.columns:
         print("Column 'type' not found.")
@@ -160,7 +198,7 @@ def plot_iv_histogram_by_ring_type(df, save_path, orientation_only, split_by_nod
 
     # 🔥 unified grouping
     for label_base, group, node_type in get_grouped_data(
-        df, orientation_only, split_by_node_and_ring
+        df, orientation_only, split_by_node_and_ring , split_by_ring_degree,
     ):
 
         iv_values = group["IV"].values
@@ -247,6 +285,7 @@ def analyze(
     orientation_only=False,
     num_rings=None,
     split_by_node_and_ring=False,
+    split_by_ring_degree = False
 ):
     df_filtered = filter_rings(
         df,
@@ -279,6 +318,8 @@ def analyze(
         title_parts.append(f"degree={degree}")
     if ring_type :
         title_parts.append(f"ring_type={ring_type}")
+    if split_by_ring_degree:
+        title_parts.append("split_by_ring_degree")
 
 
 
@@ -290,7 +331,7 @@ def analyze(
 
     print("Plotting histogram...")
     #plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
-    plot_iv_histogram_by_ring_type(df_filtered, save_path, orientation_only, split_by_node_and_ring)
+    plot_iv_histogram_by_ring_type(df_filtered, save_path, orientation_only, split_by_node_and_ring, split_by_ring_degree)
     print(f"Histogram saved to {save_path}")
 
 
@@ -304,15 +345,16 @@ def main(args):
     # Define your experiment configurations here
     # ----------------------------------------
     configs = [
-        dict(),
-        dict(num_rings=9),
-        dict(num_rings=9, degree=[1]),
-        dict(num_rings=9, degree=[2]),
-        dict(num_rings=9, degree=[3]),
-        dict(orientation_only=True),
-        dict(orientation_only=True, num_rings=9, degree=[1]),
-        dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True),
-        dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True),
+        # dict(),
+        # dict(num_rings=9),
+        # dict(num_rings=9, degree=[1]),
+        # dict(num_rings=9, degree=[2]),
+        # dict(num_rings=9, degree=[3]),
+        # dict(orientation_only=True),
+        # dict(orientation_only=True, num_rings=9, degree=[1]),
+        dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
+        dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True , split_by_ring_degree = True),
+
         # dict(orientation_only=True, num_rings=9, degree=[2]),
         # dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
     ]
@@ -333,6 +375,7 @@ def main(args):
             orientation_only=cfg.get("orientation_only", False),
             num_rings=cfg.get("num_rings"),
             split_by_node_and_ring=cfg.get("split_by_node_and_ring", False),
+            split_by_ring_degree=cfg.get("split_by_ring_degree", False),
         )
 
 if __name__ == "__main__":
