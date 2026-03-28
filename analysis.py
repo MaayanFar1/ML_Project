@@ -42,13 +42,12 @@ def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, ori
     filtered = df.copy()
 
     if num_rings is not None:
-        # Count rings from the ORIGINAL df, not filtered
+        # Count rings from the ORIGINAL df, not filtered yet
         real_rings_all = filtered[filtered["node_idx"] < max_nodes]
 
         ring_counts = real_rings_all.groupby("source_file")["node_idx"].count()
 
         valid_molecules = ring_counts[ring_counts == num_rings].index
-        # Now filter the already-filtered dataframe
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
     if node_type is not None:
@@ -65,6 +64,8 @@ def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, ori
     
     if orientation_only:
         filtered = filtered[filtered["node_idx"] >= max_nodes]
+    else:
+        filtered = filtered[filtered["node_idx"] < max_nodes]
 
     if not with_benzene:
         filtered = filtered[filtered["type"] != "Bn"]
@@ -100,7 +101,6 @@ def get_grouped_data(df, max_nodes, node_type=None, orientation_only=False, spli
     
         # default separation - atoms
         else:
-            df = df[df["node_idx"] >= max_nodes].copy()
             node_types = ATOMS_DICT
             for node_type in node_types:
                 group = df[df["type"] == node_type]
@@ -108,7 +108,6 @@ def get_grouped_data(df, max_nodes, node_type=None, orientation_only=False, spli
 
     # default separation - rings
     else:
-        df = df[df["node_idx"] < max_nodes].copy()
         node_types = RINGS_DICT
         for node_type in node_types:
             group = df[df["type"] == node_type]
