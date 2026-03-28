@@ -50,7 +50,7 @@ def filter_rings(
 
     filtered = df.copy()
 
-    if node_type is not None:
+    if node_type is not None and not orientation_only:
         filtered = filtered[filtered["type"] == node_type]
 
     if ring_type is not None:
@@ -72,10 +72,6 @@ def filter_rings(
 
         # Now filter the already-filtered dataframe
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
-
-
-    if orientation_only:
-        filtered = filtered[filtered["node_idx"] >= max_nodes]
 
     return filtered
 
@@ -113,48 +109,87 @@ def plot_iv_histogram(df, save_path, bins=50, label=None):
     plt.close()
 
 
-def get_grouped_data(df, max_nodes, orientation_only, split_by_node_and_ring, split_by_ring_degree):
+def get_grouped_data(df, max_nodes, orientation_only, split_by_node_and_ring, split_by_ring_degree, node_type=None):
     """
     Returns an iterable of (label, sub_dataframe, node_type)
     depending on the selected grouping mode.
     """
+
     # orientation atoms split by atom type + ring type + ring degree
     if orientation_only and split_by_node_and_ring and split_by_ring_degree:
-        ring_degree_map = df.set_index("node_idx")["degree"]
+        real_nodes = df[df["node_idx"] < max_nodes][["source_file", "node_idx", "degree"]].copy()
+        real_nodes = real_nodes.rename(columns={"node_idx": "Ring_indx", "degree": "ring_degree"})
+
         df_orient = df[df["node_idx"] >= max_nodes].copy()
-        df_orient["ring_degree"] = df_orient["Ring_indx"].map(ring_degree_map)
+
+        if node_type is not None:
+            df_orient = df_orient[df_orient["type"] == node_type]
+
+        df_orient = df_orient[df_orient["Ring_indx"].notna()].copy()
+
+        real_nodes["Ring_indx"] = real_nodes["Ring_indx"].astype(int)
+        df_orient["Ring_indx"] = df_orient["Ring_indx"].astype(int)
+
+        real_nodes["source_file"] = real_nodes["source_file"].astype(str)
+        df_orient["source_file"] = df_orient["source_file"].astype(str)
+
+        df_orient = df_orient.merge(real_nodes, on=["source_file", "Ring_indx"], how="left")
+
         grouped = df_orient.groupby(["type", "Ring_type", "ring_degree"])
         for (atom, ring, ring_degree), group in grouped:
             yield f"{atom}-{ring}-deg{ring_degree}", group, atom
-
+            
     # orientation atoms split by atom type + ring degree
     elif orientation_only and split_by_ring_degree:
-        ring_degree_map = df.set_index("node_idx")["degree"]
+        real_nodes = df[df["node_idx"] < max_nodes][["source_file", "node_idx", "degree"]].copy()
+        real_nodes = real_nodes.rename(columns={"node_idx": "Ring_indx", "degree": "ring_degree"})
+
         df_orient = df[df["node_idx"] >= max_nodes].copy()
-        df_orient["ring_degree"] = df_orient["Ring_indx"].map(ring_degree_map)
+
+        if node_type is not None:
+            df_orient = df_orient[df_orient["type"] == node_type]
+
+        df_orient = df_orient[df_orient["Ring_indx"].notna()].copy()
+
+        real_nodes["Ring_indx"] = real_nodes["Ring_indx"].astype(int)
+        df_orient["Ring_indx"] = df_orient["Ring_indx"].astype(int)
+
+        real_nodes["source_file"] = real_nodes["source_file"].astype(str)
+        df_orient["source_file"] = df_orient["source_file"].astype(str)
+
+        df_orient = df_orient.merge(real_nodes, on=["source_file", "Ring_indx"], how="left")
+
         grouped = df_orient.groupby(["type", "ring_degree"])
         for (atom, ring_degree), group in grouped:
             yield f"{atom}-deg{ring_degree}", group, atom
-    
+
     # orientation atoms split by atom type + ring type
     elif orientation_only and split_by_node_and_ring:
-        grouped = df.groupby(["type", "Ring_type"])
+        df_orient = df[df["node_idx"] >= max_nodes].copy()
+
+        if node_type is not None:
+            df_orient = df_orient[df_orient["type"] == node_type]
+
+        grouped = df_orient.groupby(["type", "Ring_type"])
         for (atom, ring), group in grouped:
             yield f"{atom}-{ring}", group, atom
-
-    # atoms / rings default seperation
+    # default separation
     else:
         if orientation_only:
+            df_orient = df[df["node_idx"] >= max_nodes].copy()
             node_types = ATOMS_DICT
+            for node_type in node_types:
+                group = df_orient[df_orient["type"] == node_type]
+                yield str(node_type), group, node_type
         else:
+            df_real = df[df["node_idx"] < max_nodes].copy()
             node_types = RINGS_DICT
+            for node_type in node_types:
+                group = df_real[df_real["type"] == node_type]
+                yield str(node_type), group, node_type
 
-        for node_type in node_types:
-            group = df[df["type"] == node_type]
-            yield str(node_type), group, node_type
 
-
-def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, split_by_node_and_ring=False , split_by_ring_degree=False):
+def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, split_by_node_and_ring=False , split_by_ring_degree=False , node_type=None):
 
     if "type" not in df.columns:
         print("Column 'type' not found.")
@@ -176,11 +211,18 @@ def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, s
     plotted_any = False
 
     # unified grouping
-    for label_base, group, node_type in get_grouped_data(df, max_nodes, orientation_only, split_by_node_and_ring , split_by_ring_degree,):
+    for label_base, group, group_node_type in get_grouped_data(
+        df,
+        max_nodes,
+        orientation_only,
+        split_by_node_and_ring,
+        split_by_ring_degree,
+        node_type=node_type,
+    ):
         iv_values = group["IV"].values
 
         if len(iv_values) < 2:
-            print(f"Skipping node_type={node_type}: not enough data for KDE.")
+            print(f"Skipping node_type={group_node_type}: not enough data for KDE.")
             continue
 
         mean = np.mean(iv_values)
@@ -190,19 +232,20 @@ def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, s
             kde = gaussian_kde(iv_values)
             y = kde(x) * len(iv_values)
         except Exception as e:
-            print(f"Skipping ring_type={node_type}: KDE failed ({e})")
+            print(f"Skipping ring_type={group_node_type}: KDE failed ({e})")
             continue
 
         label = f"{label_base} (n={len(iv_values)}, μ={mean:.3f} ± {std:.3f})"
-
         plt.plot(x, y, label=label)
-        plotted_any = True
     
     # Add aggregated node_type curves
     if split_by_node_and_ring and orientation_only:
         print("Adding aggregated node_type curves...")
+        dict_to_use = ATOMS_DICT 
+        if node_type is not None:
+            dict_to_use = node_type
 
-        for node_type in ATOMS_DICT:
+        for node_type in dict_to_use:
             group = df[df["type"] == node_type]
             iv_values = group["IV"].values
 
@@ -232,6 +275,8 @@ def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, s
             )
 
             plotted_any = True
+            if node_type is not None:
+                plt.xlim(-0.15, 0.1)
 
     if not plotted_any:
         print("No valid groups plotted.")
@@ -310,7 +355,7 @@ def analyze(
 
     print("Plotting histogram...")
     #plot_iv_histogram(df_filtered, save_path, bins=args.bins, label=label)
-    plot_iv_histogram_by_ring_type(df_filtered, max_nodes, save_path, orientation_only, split_by_node_and_ring, split_by_ring_degree)
+    plot_iv_histogram_by_ring_type(df_filtered, max_nodes, save_path, orientation_only, split_by_node_and_ring, split_by_ring_degree , node_type)
     print(f"Histogram saved to {save_path}")
 
 
@@ -324,15 +369,15 @@ def main(args):
     # Define your experiment configurations here
     # ----------------------------------------
     configs = [
-        # dict(),
-        # dict(num_rings=9),
-        # dict(num_rings=9, degree=[1]),
-        # dict(num_rings=9, degree=[2]),
-        # dict(num_rings=9, degree=[3]),
-        # dict(orientation_only=True),
-        # dict(orientation_only=True, num_rings=9, degree=[1]),
-        dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
-        dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True , split_by_ring_degree = True),
+        dict(),
+        dict(num_rings=9),
+        dict(num_rings=9, degree=[1]),
+        dict(num_rings=9, degree=[2]),
+        dict(num_rings=9, degree=[3]),
+        dict(orientation_only=True),
+        dict(orientation_only=True, num_rings=9, degree=[1]),
+        #dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
+        #dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True, split_by_ring_degree = True ),
 
         # dict(orientation_only=True, num_rings=9, degree=[2]),
         # dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
