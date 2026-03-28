@@ -51,8 +51,15 @@ def filter_rings(
 
     filtered = df.copy()
 
-    if not with_benzene:
-        filtered = filtered[filtered["type"] != "Bn"]
+    if num_rings is not None:
+        # Count rings from the ORIGINAL df, not filtered
+        real_rings_all = filtered[filtered["node_idx"] < max_nodes]
+
+        ring_counts = real_rings_all.groupby("source_file")["node_idx"].count()
+
+        valid_molecules = ring_counts[ring_counts == num_rings].index
+        # Now filter the already-filtered dataframe
+        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
 
     if node_type is not None and not orientation_only:
         filtered = filtered[filtered["type"] == node_type]
@@ -65,17 +72,11 @@ def filter_rings(
             filtered = filtered[filtered["degree"].isin(degree)]
         else:
             filtered = filtered[filtered["degree"] == degree]
+    
+    if not with_benzene:
+        filtered = filtered[filtered["type"] != "Bn"]
 
-    if num_rings is not None:
-        # Count rings from the ORIGINAL df, not filtered
-        real_rings_all = df[df["node_idx"] < max_nodes]
-
-        ring_counts = real_rings_all.groupby("source_file")["node_idx"].count()
-
-        valid_molecules = ring_counts[ring_counts == num_rings].index
-
-        # Now filter the already-filtered dataframe
-        filtered = filtered[filtered["source_file"].isin(valid_molecules)]
+        
 
     return filtered
 
@@ -247,7 +248,7 @@ def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, orientation_only, s
         print("Adding aggregated node_type curves...")
         dict_to_use = ATOMS_DICT 
         if node_type is not None:
-            dict_to_use = node_type
+            dict_to_use = [node_type]
 
         for node_type in dict_to_use:
             group = df[df["type"] == node_type]
@@ -406,7 +407,7 @@ def main(args):
             num_rings=cfg.get("num_rings"),
             split_by_node_and_ring=cfg.get("split_by_node_and_ring", False),
             split_by_ring_degree=cfg.get("split_by_ring_degree", False),
-            with_benzene=cfg.get("with_benzene", False),
+            with_benzene=cfg.get("with_benzene", True),
         )
 
 if __name__ == "__main__":
