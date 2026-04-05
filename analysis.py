@@ -22,6 +22,7 @@ def load_all_csvs(csv_dir):
     Load all molecule CSV files into a single pandas DataFrame.
     """
     csv_files = glob.glob(os.path.join(csv_dir, "*.csv"))
+    csv_files = csv_files[:30000] 
 
     if len(csv_files) == 0:
         raise ValueError(f"No CSV files found in {csv_dir}")
@@ -37,7 +38,7 @@ def load_all_csvs(csv_dir):
 
 
 # ---------------------- FILTERING ---------------------------
-def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, orientation_only=False, num_rings=None, with_benzene=False):
+def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, orientation_only=False, num_rings=None, with_benzene=False , split_by_LA=False):
 
     filtered = df.copy()
 
@@ -49,9 +50,6 @@ def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, ori
 
         valid_molecules = ring_counts[ring_counts == num_rings].index
         filtered = filtered[filtered["source_file"].isin(valid_molecules)]
-
-    if node_type is not None:
-        filtered = filtered[filtered["type"] == node_type]
 
     if ring_type is not None:
         filtered = filtered[filtered["Ring_type"] == ring_type]
@@ -69,12 +67,19 @@ def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, ori
 
     if not with_benzene:
         filtered = filtered[filtered["type"] != "Bn"]
+    
+    if node_type is not None:
+        filtered = filtered[filtered["type"] == node_type]
+    
+    if split_by_LA:
+        filtered = filtered[filtered["spatial_type"].notna()]
+
 
     return filtered
 
 
 # ---------------------- PLOTTING ---------------------------
-def get_grouped_data(df, max_nodes, node_type=None, orientation_only=False, split_by_node_and_ring=False , split_by_ring_degree=False):
+def get_grouped_data(df, max_nodes, node_type=None, orientation_only=False, split_by_node_and_ring=False , split_by_ring_degree=False , split_by_LA = False):
     """
     Returns an iterable of (label, sub_dataframe, node_type)
     depending on the selected grouping mode.
@@ -108,13 +113,32 @@ def get_grouped_data(df, max_nodes, node_type=None, orientation_only=False, spli
 
     # default separation - rings
     else:
-        node_types = RINGS_DICT
-        for node_type in node_types:
-            group = df[df["type"] == node_type]
-            yield str(node_type), group, node_type
+        # split only by L/A
+        if split_by_LA and not split_by_node_and_ring:
+            grouped = df.groupby("spatial_type")
+            for spatial_type, group in grouped:
+                yield str(spatial_type), group, spatial_type
+
+        # split by ring type + L/A
+        elif split_by_LA and split_by_node_and_ring:
+            grouped = df.groupby(["type", "spatial_type"])
+            for (ring_type, spatial_type), group in grouped:
+                yield f"{ring_type}-{spatial_type}", group, ring_type
+
+        # split only by ring type
+        # elif split_by_node_and_ring:
+        #     grouped = df.groupby("type")
+        #     for ring_type, group in grouped:
+        #         yield str(ring_type), group, ring_type
+
+        else:
+            node_types = RINGS_DICT
+            for node_type in node_types:
+                group = df[df["type"] == node_type]
+                yield str(node_type), group, node_type
 
 
-def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, node_type=None, orientation_only=False, split_by_node_and_ring=False , split_by_ring_degree=False):
+def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, node_type=None, orientation_only=False, split_by_node_and_ring=False , split_by_ring_degree=False , split_by_LA = False):
 
     if "type" not in df.columns:
         print("Column 'type' not found.")
@@ -128,14 +152,17 @@ def plot_iv_histogram_by_ring_type(df, max_nodes, save_path, node_type=None, ori
 
     # Common x-axis
     iv_values_all = df["IV"].values
-    x_limit = max(np.abs(iv_values_all.min()), np.abs(iv_values_all.max()))
-    x = np.linspace(-x_limit, x_limit, 500)
+    min_val = iv_values_all.min()
+    max_val = iv_values_all.max()
+
+    margin = 0.03  # or 10–20% of range
+    x = np.linspace(min_val - margin, max_val + margin + 0.02, 500)
 
     plt.figure(dpi=300, figsize=(8, 6))
     plotted_any = False
 
     # unified grouping
-    for label_base, group, group_node_type in get_grouped_data(df, max_nodes, node_type, orientation_only, split_by_node_and_ring, split_by_ring_degree):
+    for label_base, group, group_node_type in get_grouped_data(df, max_nodes, node_type, orientation_only, split_by_node_and_ring, split_by_ring_degree , split_by_LA):
         iv_values = group["IV"].values
 
         if len(iv_values) < 2:
@@ -217,6 +244,7 @@ def analyze(
     split_by_node_and_ring=False,
     split_by_ring_degree=False,
     with_benzene=False,
+    split_by_LA = False,
 ):
     df_filtered = filter_rings(
         df,
@@ -227,6 +255,7 @@ def analyze(
         orientation_only=orientation_only,
         num_rings=num_rings,
         with_benzene=with_benzene,
+        split_by_LA = split_by_LA
     )
 
     print(f"Rings after filtering: {len(df_filtered)}")
@@ -254,17 +283,50 @@ def analyze(
         title_parts.append(f"ring_type={ring_type}")
     if with_benzene :
         title_parts.append("withBn")
+    if split_by_LA:
+        title_parts.append("splitByLA")
+    if split_by_node_and_ring and not orientation_only:
+        title_parts.append("separatedByRingType")
 
 
 
     label = ", ".join(title_parts) if title_parts else "All rings"
 
     safe_title = label.replace(" ", "_").replace(",", "").replace("=", "")
-    save_path = os.path.join(out_dir, f"iv_histogram_{safe_title}.png")
+    save_path = os.path.join(out_dir, f"no_orein_iv_histogram_{safe_title}.png")
     #save_path = os.path.join(args.out_dir, "iv_histogram.png") #make sure path is right
 
+    if split_by_LA and split_by_node_and_ring and not orientation_only:
+        ring_types = sorted(df_filtered["type"].dropna().unique())
+
+        for ring_t in ring_types:
+            df_ring = df_filtered[df_filtered["type"] == ring_t].copy()
+
+            if len(df_ring) == 0:
+                continue
+
+            ring_save_path = os.path.join(
+                out_dir,
+                f"no_orie_iv_histogram_{safe_title}_ringtype_{ring_t}.png"
+            )
+
+            print(f"Plotting histogram for ring type {ring_t}...")
+            plot_iv_histogram_by_ring_type(
+                df_ring,
+                max_nodes,
+                ring_save_path,
+                node_type=None,
+                orientation_only=False,
+                split_by_node_and_ring=False,
+                split_by_ring_degree=False,
+                split_by_LA=True,
+            )
+            print(f"Histogram saved to {ring_save_path}")
+
+        return
+
     print("Plotting histogram...")
-    plot_iv_histogram_by_ring_type(df_filtered, max_nodes, save_path, node_type, orientation_only, split_by_node_and_ring, split_by_ring_degree)
+    plot_iv_histogram_by_ring_type(df_filtered, max_nodes, save_path, node_type, orientation_only, split_by_node_and_ring, split_by_ring_degree ,split_by_LA)
     print(f"Histogram saved to {save_path}")
 
 
@@ -278,18 +340,21 @@ def main(args):
     # Define your experiment configurations here
     # ----------------------------------------
     configs = [
-        dict(),
-        dict(num_rings=9),
-        dict(num_rings=9, degree=[1]),
-        dict(num_rings=9, degree=[2]),
-        dict(num_rings=9, degree=[3]),
-        dict(orientation_only=True),
-        dict(orientation_only=True, num_rings=9, degree=[1]),
-        #dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
-        #dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-
+        # dict(),
+        #dict(num_rings=9),
+        # dict(num_rings=9, degree=[1]),
+        # dict(num_rings=9, degree=[2]),
+        # dict(num_rings=9, degree=[3] , with_benzene = True),
+        # dict(orientation_only=True),
+        # dict(orientation_only=True, num_rings=9, degree=[1]),
+        # dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
+        # dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True, split_by_ring_degree = True ),
+        dict(orientation_only = True , num_rings = 9 , node_type = "S" , split_by_node_and_ring = True, split_by_ring_degree = True ),
+        # dict(orientation_only = True , num_rings = 9 , node_type = "O" , split_by_node_and_ring = True, split_by_ring_degree = True ),
+        # dict(num_rings = 9 , split_by_LA = True),
+        #dict(orientation_only = False , num_rings = 9 , split_by_LA = True , split_by_node_and_ring = True),
         # dict(orientation_only=True, num_rings=9, degree=[2]),
-        # dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
+        #dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
     ]
 
     # ----------------------------------------
@@ -310,6 +375,7 @@ def main(args):
             split_by_node_and_ring=cfg.get("split_by_node_and_ring", False),
             split_by_ring_degree=cfg.get("split_by_ring_degree", False),
             with_benzene=cfg.get("with_benzene", False),
+            split_by_LA = cfg.get("split_by_LA" , False)
         )
 
 if __name__ == "__main__":

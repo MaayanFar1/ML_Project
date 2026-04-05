@@ -58,7 +58,7 @@ class AromaticDataset(Dataset):
         self.target_features = (
             self.target_features.split(",") if self.target_features else []
         )
-        self.orientation = False if self.dataset == "cata" else True
+        self.orientation = False #if self.dataset == "cata" else True Maayan need to change back!!!
         self._edge_mask_orientation = None
         self.atoms_list = ATOMS_LIST[self.dataset]
         self.knots_list = RINGS_LIST[self.dataset]
@@ -181,39 +181,6 @@ class AromaticDataset(Dataset):
 
         return x, adj, node_features, orientation, knots_with_orientation
 
-
-    # not in use
-    def get_atoms(self, df_row):
-        name = df_row["molecule"]
-
-        preprocessed_dir = self.xyz_root + "_atoms_preprocessed"
-        os.makedirs(preprocessed_dir, exist_ok=True)
-
-        preprocessed_path = os.path.join(preprocessed_dir, name + ".pt")
-
-        if Path(preprocessed_path).is_file():
-            x, adj, node_features = torch.load(preprocessed_path)
-        else:
-            mol, edges, atom_connectivity, _ , rd_mol = self.get_mol(df_row)
-            x = torch.tensor([a.get_coord() for a in mol.atoms], dtype=DTYPE)
-
-            atom_element = torch.tensor(
-                [self.atoms_list.index(atom.element) for atom in mol.atoms]
-            ).unsqueeze(1)
-
-            node_features = (
-                one_hot(atom_element, num_classes=len(self.atoms_list))
-                .squeeze(1)
-                .float()
-            )
-
-            adj = atom_connectivity
-
-            tmp_path = preprocessed_path + ".tmp"
-            torch.save([x, adj, node_features], tmp_path)
-            os.replace(tmp_path, preprocessed_path)
-
-        return x, adj, node_features
 
 
 # ------------------------------------------------------------

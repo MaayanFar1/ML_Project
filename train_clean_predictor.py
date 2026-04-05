@@ -196,6 +196,7 @@ def get_cond_predictor_model(args, dataset: AromaticDataset):
     if args.dp:  # and torch.cuda.device_count() > 1:
         cond_predictor = MyDataParallel(cond_predictor)
     if args.restore is not None:
+        ##Maayan changed , need to return to /home/maayanfarkash/proj/prediction_summary/hetro/checkpoint_best.pt
         checkpoint = torch.load(
             "/home/maayanfarkash/proj/prediction_summary/hetro/checkpoint_best.pt",
             map_location=args.device
