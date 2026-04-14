@@ -59,9 +59,9 @@ def get_rings(rd_mol ,mol, _atoms: Sequence[Atom], _molgraph: nx.graph) -> Seque
 
             if has_H:
                 knot_type = "DhDb"
-                # print("there is knot type DhDb")
             else:
                 knot_type = "Db"
+                
 
         # save the ring orientation - defined as the on of the hetro atoms coordinates
         if knot_type in NO_ORIENTATION_RINGS:

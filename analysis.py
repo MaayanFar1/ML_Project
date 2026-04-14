@@ -260,6 +260,23 @@ def analyze(
 
     print(f"Rings after filtering: {len(df_filtered)}")
 
+        # ✅ ADD DEBUG PRINTS HERE
+    print("\n--- DEBUG INFO ---")
+    print("Columns:", df_filtered.columns.tolist())
+
+    if "type" in df_filtered.columns:
+        print("unique type:", sorted(df_filtered["type"].dropna().unique()))
+
+    if "Ring_type" in df_filtered.columns:
+        print("unique Ring_type:", sorted(df_filtered["Ring_type"].dropna().unique()))
+
+    for rt in ["Bn", "Bz", "Db", "DhDb"]:
+        if "type" in df_filtered.columns:
+            print(rt, "in type:", (df_filtered["type"] == rt).sum())
+        if "Ring_type" in df_filtered.columns:
+            print(rt, "in Ring_type:", (df_filtered["Ring_type"] == rt).sum())
+    ##End of debuging
+
     if len(df_filtered) == 0:
         print("No rings left after filtering.")
         return
@@ -340,21 +357,20 @@ def main(args):
     # Define your experiment configurations here
     # ----------------------------------------
     configs = [
-        # dict(),
-        #dict(num_rings=9),
-        # dict(num_rings=9, degree=[1]),
-        # dict(num_rings=9, degree=[2]),
-        # dict(num_rings=9, degree=[3] , with_benzene = True),
+        dict(),
+        dict(num_rings=9),
+        dict(num_rings=9, degree=[1]),
+        dict(num_rings=9, degree=[2]),
+        dict(num_rings=9, degree=[3] , with_benzene = True),
         # dict(orientation_only=True),
         # dict(orientation_only=True, num_rings=9, degree=[1]),
         # dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
         # dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-        dict(orientation_only = True , num_rings = 9 , node_type = "S" , split_by_node_and_ring = True, split_by_ring_degree = True ),
+        #dict(orientation_only = True , num_rings = 9 , node_type = "S" , split_by_node_and_ring = True, split_by_ring_degree = True ),
         # dict(orientation_only = True , num_rings = 9 , node_type = "O" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-        # dict(num_rings = 9 , split_by_LA = True),
-        #dict(orientation_only = False , num_rings = 9 , split_by_LA = True , split_by_node_and_ring = True),
-        # dict(orientation_only=True, num_rings=9, degree=[2]),
-        #dict(orientation_only=True, num_rings=9, degree=[3]), Unrelavent null
+        dict(num_rings = 9 , split_by_LA = True),
+        dict(orientation_only = False , num_rings = 9 , split_by_LA = True , split_by_node_and_ring = True),
+
     ]
 
     # ----------------------------------------

@@ -311,15 +311,49 @@ def save_molecule_node_csv(csv_path: str, x_full, node_features_full, gradramwei
 
     for i in ring_indices:
         _, type_name = node_type_from_onehot(nf[i])
-        rows.append({
+        row = {
             "node_idx": int(i),
-            "x": float(x[i, 0]),
-            "y": float(x[i, 1]),
-            "z": float(x[i, 2]),
+            # "x": float(x[i, 0]),
+            # "y": float(x[i, 1]),
+            # "z": float(x[i, 2]),
             "type": type_name,
             "degree": int(degrees[i]),
             "IV": float(w[i]),
-        })
+        }
+
+        if int(degrees[i]) == 2:
+            neighbors = np.where(real_adj[i] > 0)[0]
+
+            if len(neighbors) == 2:
+                j, k = int(neighbors[0]), int(neighbors[1])
+
+                v1 = x[j] - x[i]
+                v2 = x[k] - x[i]
+
+                norm1 = np.linalg.norm(v1)
+                norm2 = np.linalg.norm(v2)
+
+                if norm1 > 0 and norm2 > 0:
+                    cos_theta = np.dot(v1, v2) / (norm1 * norm2)
+                    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+                    angle = np.degrees(np.arccos(cos_theta))
+
+                    row["spatial_type"] = "L" if angle >= 170 else "A"
+                    if type_name == "Cbd" and angle < 170 :
+                        print("The molucule " , csv_path , "has wrong angle " , angle )
+                        print("Cbd caused , xyz of node" ,x[i], "neigbhor1" , x[j] , "neigbhor2" , x[k])
+                    if type_name == "Db" and angle < 170 :
+                        print("The molucule " , csv_path , "has wrong angle " , angle )
+                    if type_name == "DhDb" and angle < 170 :
+                        print("The molucule " , csv_path , "has wrong angle " , angle )
+                    if type_name == "Pz" and angle < 170 :
+                        print("The molucule " , csv_path , "has wrong angle " , angle )                                              
+
+            else:
+                print(f"Warning: ring {i} has degree 2 but found {len(neighbors)} neighbors: {neighbors}")
+
+        rows.append(row)
+            
 
     # -------- Orientation nodes --------
     orient_indices = np.where(keep)[0]
@@ -331,9 +365,9 @@ def save_molecule_node_csv(csv_path: str, x_full, node_features_full, gradramwei
 
         rows.append({
             "node_idx": int(i),
-            "x": float(x[i, 0]),
-            "y": float(x[i, 1]),
-            "z": float(x[i, 2]),
+            # "x": float(x[i, 0]),
+            # "y": float(x[i, 1]),
+            # "z": float(x[i, 2]),
             "type": last_char,
             "degree": 1,  # orientation nodes connect only to their ring
             "IV": float(w[i]),
