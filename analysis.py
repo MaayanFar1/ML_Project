@@ -38,7 +38,20 @@ def load_all_csvs(csv_dir):
 
 
 # ---------------------- FILTERING ---------------------------
-def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, orientation_only=False, num_rings=None, with_benzene=False , split_by_LA=False):
+
+def get_ring_types_containing_atom(atom):
+    """
+    Returns ring types whose chemical pattern contains the atom.
+    Example:
+        atom='N' -> ['Pl', 'Pd', 'Pz']
+    """
+    return [
+        ring_type
+        for ring_type, composition in RINGS_DICT.items()
+        if atom in composition
+    ]
+
+def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, orientation_only=False, num_rings=None, with_benzene=False , split_by_LA=False, containing_atom=None):
 
     filtered = df.copy()
 
@@ -54,6 +67,12 @@ def filter_rings(df, max_nodes, ring_type=None, node_type=None, degree=None, ori
     if ring_type is not None:
         filtered = filtered[filtered["Ring_type"] == ring_type]
 
+    # filter rings containing atom
+    if containing_atom is not None:
+        valid_ring_types = get_ring_types_containing_atom(containing_atom)
+        # for ring rows, the ring label lives in "type"
+        filtered = filtered[filtered["type"].isin(valid_ring_types)]#????? type or ring type? check in the csv table
+   
     if degree is not None:
         if isinstance(degree, list):
             filtered = filtered[filtered["degree"].isin(degree)]
@@ -245,6 +264,7 @@ def analyze(
     split_by_ring_degree=False,
     with_benzene=False,
     split_by_LA = False,
+    containing_atom=None,
 ):
     df_filtered = filter_rings(
         df,
@@ -255,7 +275,8 @@ def analyze(
         orientation_only=orientation_only,
         num_rings=num_rings,
         with_benzene=with_benzene,
-        split_by_LA = split_by_LA
+        split_by_LA = split_by_LA,
+        containing_atom=containing_atom,
     )
 
     print(f"Rings after filtering: {len(df_filtered)}")
@@ -286,6 +307,8 @@ def analyze(
     title_parts = []
     if num_rings is not None:
         title_parts.append(f"num_rings={num_rings}")
+    if containing_atom:
+        title_parts.append(f"contains={containing_atom}")
     if orientation_only:
         title_parts.append("orientation_only")
         if split_by_node_and_ring:
@@ -362,14 +385,9 @@ def main(args):
         dict(num_rings=9, degree=[1]),
         dict(num_rings=9, degree=[2]),
         dict(num_rings=9, degree=[3] , with_benzene = True),
-        # dict(orientation_only=True),
-        # dict(orientation_only=True, num_rings=9, degree=[1]),
-        # dict(orientation_only = True , num_rings = 9 , node_type = "N", split_by_node_and_ring = True, split_by_ring_degree = True),
-        # dict(orientation_only = True , num_rings = 9 , node_type = "B" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-        #dict(orientation_only = True , num_rings = 9 , node_type = "S" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-        # dict(orientation_only = True , num_rings = 9 , node_type = "O" , split_by_node_and_ring = True, split_by_ring_degree = True ),
-        dict(num_rings = 9 , split_by_LA = True),
         dict(orientation_only = False , num_rings = 9 , split_by_LA = True , split_by_node_and_ring = True),
+        dict(orientation_only = False , num_rings = 9 , containing_atom="N"),
+        # ????? we do "containing_atom" with degree also?
 
     ]
 
@@ -380,18 +398,19 @@ def main(args):
         print(f"### Experiment {i+1}/{len(configs)} ###")
 
         analyze(
-            df=df,
-            out_dir=args.out_dir,
-            max_nodes=args.max_nodes,
-            ring_type=cfg.get("ring_type"),
-            node_type=cfg.get("node_type"),
-            degree=cfg.get("degree"),
-            orientation_only=cfg.get("orientation_only", False),
-            num_rings=cfg.get("num_rings"),
+            df                    =df,
+            out_dir               =args.out_dir,
+            max_nodes             =args.max_nodes,
+            ring_type             =cfg.get("ring_type"),
+            node_type             =cfg.get("node_type"),
+            degree                =cfg.get("degree"),
+            orientation_only      =cfg.get("orientation_only", False),
+            num_rings             =cfg.get("num_rings"),
             split_by_node_and_ring=cfg.get("split_by_node_and_ring", False),
-            split_by_ring_degree=cfg.get("split_by_ring_degree", False),
-            with_benzene=cfg.get("with_benzene", False),
-            split_by_LA = cfg.get("split_by_LA" , False)
+            split_by_ring_degree  =cfg.get("split_by_ring_degree", False),
+            with_benzene          =cfg.get("with_benzene", False),
+            split_by_LA           =cfg.get("split_by_LA" , False),
+            containing_atom       =cfg.get("containing_atom")
         )
 
 if __name__ == "__main__":
